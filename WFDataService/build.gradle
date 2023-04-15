@@ -9,6 +9,7 @@ version = loadVersion().getVersion()
 
 dependencies {
       implementation 'mysql:mysql-connector-java:8.0.31'
+      implementation 'com.zaxxer:HikariCP:4.0.3'
       implementation project(':WFDataModel')
 }
  

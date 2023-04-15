@@ -10,6 +10,7 @@ version = loadVersion().getVersion()
 
 dependencies {
       implementation 'org.xerial:sqlite-jdbc:3.8.7'
+      implementation 'com.zaxxer:HikariCP:4.0.3'
       implementation project(':WFDataModel')
 }
  

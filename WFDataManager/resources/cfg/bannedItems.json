@@ -1,0 +1,16 @@
+{
+	"offenseThreshold":10,
+	"strikeThreshold":3,
+	"loadouts":[
+		{
+			"loadoutName":"Wolf Sledge",
+			"items":[
+				{
+					"itemName":"ThrowingHammer",
+					"itemAmount":0.1
+				}
+			],
+			"elo":"NON_RC"
+		}
+	]
+}

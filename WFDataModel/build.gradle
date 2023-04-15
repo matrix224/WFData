@@ -1,0 +1,39 @@
+apply plugin: 'java'
+apply plugin: 'java-library'
+apply plugin: 'application'
+apply plugin: 'eclipse'
+
+sourceSets.main.java.srcDirs = ['src']
+
+dependencies {
+      api files('../JDTools/build/libs/JDTools.jar')
+	  api 'com.google.code.gson:gson:2.9.0'
+      implementation 'org.apache.logging.log4j:log4j-api:2.19.0'
+      implementation 'org.apache.logging.log4j:log4j-core:2.19.0'
+      implementation 'com.github.jponge:lzma-java:1.3'
+      implementation 'com.zaxxer:HikariCP:4.0.3'
+      runtimeOnly('org.slf4j:slf4j-api:1.7.30')
+      runtimeOnly('org.slf4j:slf4j-simple:1.7.30')
+}
+ 
+configurations {
+    runtimeClasspath
+}
+
+repositories {
+  mavenCentral() // for transitive dependencies
+}
+
+jar {
+    manifest {
+        attributes 'Class-Path': configurations.runtimeClasspath.files.collect {"$it.name"}.join(' ')
+    }
+}
+
+// HOW TO BUILD:
+//  - OPEN CMD, CD TO PROJECT FOLDER
+//  - RUN 'gradle clean'
+//  - RUN 'gradle installDist'
+//  - CHECK 'build' FOLDER IN PROJECT FOLDER
+//  - ???
+//  - PROFIT!

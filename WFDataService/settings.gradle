@@ -1,0 +1,2 @@
+include ':WFDataModel'
+project(':WFDataModel').projectDir = new File('../WFDataModel/')

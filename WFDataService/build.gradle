@@ -1,0 +1,42 @@
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'eclipse'
+apply from: 'version.gradle'
+
+sourceSets.main.java.srcDirs = ['src']
+mainClassName = 'wfDataService.service.main.WFDataService'
+version = loadVersion().getVersion()
+
+dependencies {
+      implementation 'mysql:mysql-connector-java:8.0.31'
+      implementation project(':WFDataModel')
+}
+ 
+configurations {
+    runtimeClasspath
+}
+
+repositories {
+  mavenCentral() // for transitive dependencies
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': mainClassName,
+        	'Class-Path': configurations.runtimeClasspath.files.collect {"$it.name"}.join(' '),
+        	'Implementation-Version': version
+        )
+    }
+}
+
+
+
+// HOW TO BUILD:
+//  - OPEN CMD, CD TO PROJECT FOLDER
+//  - RUN 'gradle patchVersionUpdate/minorVersionUpdate/majorVersionUpdate' TO UPDATE DESIGNATED VERSION(S)
+//  - RUN 'gradle clean'
+//  - RUN 'gradle installDist'
+//  - CHECK 'build' FOLDER IN PROJECT FOLDER
+//  - ???
+//  - PROFIT!

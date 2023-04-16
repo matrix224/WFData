@@ -96,7 +96,8 @@ public class ServerTimeStats {
 		setDates(true); // Set up our dates before changing the rollover time
 		// Add one day to the start of day of log start time plus our current rollover time, and subtract difference of midnight next day from log start time, and divide by 1000 to get seconds marker value
 		// Add an extra 5 seconds onto our localdate calculation here to ensure we're getting the current rollover date as epochTime before adding 1 day
-		rolloverTime = (int) ((LocalDate.ofInstant(Instant.ofEpochMilli(epochTime), ZoneId.systemDefault()).atStartOfDay().plusDays(1).toInstant(ZonedDateTime.now(ZoneId.systemDefault()).getOffset()).toEpochMilli() - serverStartTimeEpoch) / 1000);
+		Instant inst = Instant.ofEpochMilli(epochTime);
+		rolloverTime = (int) ((LocalDate.ofInstant(inst, ZoneId.systemDefault()).atStartOfDay().plusDays(1).toInstant(ZonedDateTime.ofInstant(inst, ZoneId.systemDefault()).getOffset()).toEpochMilli() - serverStartTimeEpoch) / 1000);
 	}
 	
 	private void setDates(boolean wantNext) {

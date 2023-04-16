@@ -42,6 +42,7 @@ public final class JSONField {
 	
 	public static final String OFFENSE_THRESHOLD = "offenseThreshold";
 	public static final String OLDEST = "oldest";
+	public static final String ORIG_TYPE = "oType";
 	
 	public static final String PLATFORM = "platform";
 	public static final String PLAYER_NAME = "player";

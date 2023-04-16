@@ -89,7 +89,9 @@ public class ServerData {
 
 	public int getNumericId() {
 		int i = id.length() - 1;
-		while (i >= 0 && Character.isDigit(id.charAt(i--)));
+		while (i >= 0 && Character.isDigit(id.charAt(i))) {
+			--i;
+		}
 		return Integer.parseInt(id.substring(i + 1));
 	}
 	

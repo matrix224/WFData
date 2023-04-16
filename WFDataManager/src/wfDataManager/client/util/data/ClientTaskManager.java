@@ -40,6 +40,10 @@ public class ClientTaskManager extends TaskManager {
 			task = new BanFetcherTask();
 		} else if (ClientTaskUtil.TASK_RETRY_FAILED.equals(taskName)) {
 			delay = ClientSettingsUtil.getPollInterval() / 2; // Initial delay is half the log parsing time
+			if (delay <= 0) {
+				delay = 30; // This will happen during historical log processing, so just default to 30s
+			}
+			
 			// Period for this is based on how long the service timeout is and how many failed counts we'll try at most
 			// We want the period to be longer than the longest it'd take if every retry timed out so that there will be no overlap
 			// i.e. if service timeout is 10 seconds and we have 10 total retries to make (10 game data),

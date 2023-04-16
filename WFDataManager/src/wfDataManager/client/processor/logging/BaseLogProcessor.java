@@ -41,6 +41,7 @@ import wfDataManager.client.parser.logging.CephalonCaptureParser;
 import wfDataManager.client.parser.logging.CurrentDirectoryParser;
 import wfDataManager.client.parser.logging.CurrentProfileParser;
 import wfDataManager.client.parser.logging.CurrentTimeParser;
+import wfDataManager.client.parser.logging.GPFParser;
 import wfDataManager.client.parser.logging.GameSettingsParser;
 import wfDataManager.client.parser.logging.LunaroGoalParser;
 import wfDataManager.client.parser.logging.MissionStatsParser;
@@ -72,7 +73,7 @@ public abstract class BaseLogProcessor {
 	protected long numRuns = 0;
 	protected Map<String, File> logFiles = new ConcurrentHashMap<String, File>(8); // LogID -> data. Start at 8, will increase on its own as needed
 	protected List<ServerData> serverInfos = new ArrayList<ServerData>();  // Servers that were included in current parse
-	protected List<BaseLogParser> parsers = Arrays.asList(new BindingParser(), new BuildIDParser(), new CephalonCaptureParser(), new CurrentDirectoryParser(), new CurrentProfileParser(), new CurrentTimeParser(), new GameSettingsParser(), new LunaroGoalParser(), new MissionStatsParser(), new NRSIssueParser(), new PlayerConnectionParser(), new PlayerJoinParser(), new PlayerKillParser(), new PlayerLeaveParser());
+	protected List<BaseLogParser> parsers = Arrays.asList(new BindingParser(), new BuildIDParser(), new CephalonCaptureParser(), new CurrentDirectoryParser(), new CurrentProfileParser(), new CurrentTimeParser(), new GameSettingsParser(), new GPFParser(), new LunaroGoalParser(), new MissionStatsParser(), new NRSIssueParser(), new PlayerConnectionParser(), new PlayerJoinParser(), new PlayerKillParser(), new PlayerLeaveParser());
 	private int jamThreshold = ClientSettingsUtil.getJamThreshold();
 	private boolean enableAlerts = ClientSettingsUtil.enableAlerts();
 	private boolean shouldPersist = ClientSettingsUtil.persist();
@@ -156,7 +157,7 @@ public abstract class BaseLogProcessor {
 							isReadingMissionStats = false;
 						} else if (ParseResultType.STOP.equals(result)) {
 							break;
-						} else if (ParseResultType.END_LOG.equals(result)) {
+						} else if (ParseResultType.FINISH_LOG.equals(result)) {
 							logReachedEnd = true;
 							break;
 						}
@@ -267,7 +268,7 @@ public abstract class BaseLogProcessor {
 					hasServerData = true;
 
 					if (shouldPersist) {
-						GameDataDao.updatePlayerData(conn, parsedPlayers);
+						GameDataDao.updatePlayerData(conn, parsedPlayers, getDataType());
 						GameDataDao.updateWeeklyPlayerData(conn, parsedPlayers, server.getTimeStats().getWeeklyDate().toLocalDate());
 						GameDataDao.updateWeaponData(conn, parsedPlayers);
 						GameDataDao.addDailyWeaponData(conn, parsedPlayers, server.getTimeStats().getDailyDate().toLocalDate());

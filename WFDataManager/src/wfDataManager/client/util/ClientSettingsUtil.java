@@ -11,6 +11,7 @@ import wfDataModel.model.logging.Log;
  */
 public class ClientSettingsUtil {
 
+	public static final int HISTORICAL_POLLING_INTERVAL = 1;
 	private static ClientSettingsCfg singleton;
 	
 	private static synchronized ClientSettingsCfg singleton() {

@@ -36,7 +36,7 @@ public class CurrentDirectoryParser extends BaseLogParser {
 		// This can happen if, e.g., a log was processed in normal mode first then in historical mode at a later time
 		if (ServerDao.hasLogBeenProcessed(serverData)) {
 			Log.info(LOG_ID + ".parse() : Server with timestamp (" + serverData.getTimeStats().getStartTime() + ") for logId " + serverData.getId() + " has already been marked as processed. Will skip this log file.");
-			return ParseResultType.END_LOG;
+			return ParseResultType.FINISH_LOG;
 		} else {
 			ServerDao.addProcessedLog(serverData);
 			return ParseResultType.OK;

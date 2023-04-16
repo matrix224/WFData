@@ -67,6 +67,7 @@ public class AddDataResponseParser extends BaseResponseParser {
 			Log.warn(LOG_ID + ".handleError() : Retried game data failed to be processed in service, will try again later");
 		} else {
 			Log.warn(LOG_ID + ".handleError() : Game data failed to be processed in service, will store and try it again later");
+			respObj.addProperty(JSONField.ORIG_TYPE, dataType.name());
 			RetryDataDao.addRetryData(respObj.toString());
 		}
 	}

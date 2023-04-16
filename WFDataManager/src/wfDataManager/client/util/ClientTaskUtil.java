@@ -35,6 +35,10 @@ public final class ClientTaskUtil {
 		singleton().addTask(taskName);
 	}
 	
+	public static void stopTask(String taskName) {
+		singleton().stopTask(taskName);
+	}
+	
 	public static void stopTasks() {
 		singleton().stopTasks();
 	}

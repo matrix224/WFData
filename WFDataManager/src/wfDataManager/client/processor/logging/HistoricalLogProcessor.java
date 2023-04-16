@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 
 import jdtools.util.MiscUtil;
 import wfDataManager.client.util.ClientSettingsUtil;
+import wfDataManager.client.util.ClientTaskUtil;
 import wfDataModel.model.data.ServerData;
 import wfDataModel.model.logging.Log;
 import wfDataModel.service.type.GameDataType;
@@ -60,9 +61,16 @@ public class HistoricalLogProcessor extends BaseLogProcessor {
 					}
 				}
 			}
-			Log.info(LOG_ID + ".findLogFiles() : Found " + numFound + " historical files to process");
+			int estimatedSeconds = (int) (((numFound * ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL) / logFiles.size()) * 1.5);
+			int estDays = estimatedSeconds / (3600 * 24);
+			int estHours = (estimatedSeconds / 3600) % 24;
+			int estMinutes = (estimatedSeconds % 3600) / 60;
+			int estSeconds = (estimatedSeconds % 60);
+			
+			Log.info(LOG_ID + ".findLogFiles() : Found " + numFound + " historical files to process. Estimated run time: " + estDays + " day(s), " + estHours + " hour(s), " + estMinutes + " min(s), " + estSeconds + " sec(s)");
 		} else if (foundFiles.isEmpty()) {
 			Log.warn(LOG_ID + ".findLogFiles() : All log files have been parsed. Process can be shut down");
+			ClientTaskUtil.stopTask(ClientTaskUtil.TASK_LOG_PROCESSOR);
 		}
 	}
 

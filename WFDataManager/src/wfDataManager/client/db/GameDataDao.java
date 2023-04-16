@@ -23,6 +23,7 @@ import wfDataModel.model.data.KillerData;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.DBUtil;
+import wfDataModel.service.type.GameDataType;
 import wfDataModel.service.type.PlatformType;
 
 /**
@@ -34,12 +35,14 @@ public class GameDataDao {
 
 	private static final String LOG_ID = GameDataDao.class.getSimpleName();
 
-	public static void updatePlayerData(Connection conn, Collection<PlayerData> players) {
+	public static void updatePlayerData(Connection conn, Collection<PlayerData> players, GameDataType dataType) {
 		PreparedStatement psSelect = null;
 		PreparedStatement psInsert = null;
 		PreparedStatement psInsertProfile = null;
 		PreparedStatement psUpdate = null;
 		PreparedStatement psUpdateName = null;
+		PreparedStatement psUpdatePastNames = null;
+
 		ResultSet rs = null;
 
 		try {
@@ -105,17 +108,27 @@ public class GameDataDao {
 				}
 
 				if (!MiscUtil.isEmpty(curDBName) && !curDBName.equals(data.getPlayerName())) {
-					if (psUpdateName == null) {
+					
+					if (GameDataType.HISTORICAL_GAME_DATA.equals(dataType) && psUpdateName == null) {
+						psUpdatePastNames = conn.prepareStatement("UPDATE PLAYER_PROFILE SET PAST_NAMES = ? WHERE UID=?");
+					} else if (GameDataType.GAME_DATA.equals(dataType) && psUpdateName == null) {
 						psUpdateName = conn.prepareStatement("UPDATE PLAYER_PROFILE SET NAME = ?, PAST_NAMES = ? WHERE UID=?");
 					}
 					
 					Set<String> pastNamesArr = !MiscUtil.isEmpty(pastNames) ? new Gson().fromJson(pastNames, new TypeToken<HashSet<String>>(){}.getType()) : new HashSet<String>();
 					pastNamesArr.add(curDBName);
 					
-					psUpdateName.setString(1, data.getPlayerName());
-					psUpdateName.setString(2, new Gson().toJson(pastNamesArr));
-					psUpdateName.setString(3, data.getUID());
-					result = psUpdateName.executeUpdate();
+					if (GameDataType.HISTORICAL_GAME_DATA.equals(dataType)) {
+						psUpdatePastNames.setString(1, new Gson().toJson(pastNamesArr));
+						psUpdatePastNames.setString(2, data.getUID());
+						result = psUpdatePastNames.executeUpdate();
+					} else {
+						psUpdateName.setString(1, data.getPlayerName());
+						psUpdateName.setString(2, new Gson().toJson(pastNamesArr));
+						psUpdateName.setString(3, data.getUID());
+						result = psUpdateName.executeUpdate();
+					}
+
 					if (result != 1) {
 						Log.warn(LOG_ID + ".updatePlayerData() : Did not update player profile data for " + data.getPlayerName() + ", result count = " + result);
 					} else {
@@ -127,7 +140,7 @@ public class GameDataDao {
 			Log.error(LOG_ID + ".updatePlayerData() : Error occurred -> " + e.getLocalizedMessage());
 		} finally {
 			ResourceManager.releaseResources(rs);
-			ResourceManager.releaseResources(psSelect, psInsert, psInsertProfile, psUpdate, psUpdateName);
+			ResourceManager.releaseResources(psSelect, psInsert, psInsertProfile, psUpdate, psUpdateName, psUpdatePastNames);
 		}
 	}
 

@@ -10,6 +10,7 @@ import java.io.IOException;
 
 import jdtools.util.MiscUtil;
 import wfDataManager.client.type.ProcessModeType;
+import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.annotation.SettingData;
 import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.data.SettingsCfg;
@@ -126,12 +127,12 @@ public class ClientSettingsCfg extends SettingsCfg {
 	public void setProcessMode(ProcessModeType processMode) {
 		this.processMode = processMode;
 		if (ProcessModeType.HISTORICAL.equals(processMode)) {
-			Log.info(LOG_ID + ".setProcessMode() : Process is set to historical mode, will disable the following for this run: printServerData, enableBanning, enableAlerts, cleanServerProfiles. Will also override poll interval to 3s");
+			Log.info(LOG_ID + ".setProcessMode() : Process is set to historical mode, will disable the following for this run: printServerData, enableBanning, enableAlerts, cleanServerProfiles. Will also override poll interval to " + ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL + "s");
 			printServerOutput = false;
 			enableBanning = false;
 			enableAlerts = false;
 			cleanServerProfiles = false;
-			pollInterval = 3;
+			pollInterval = ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL;
 		}
 	}
 	

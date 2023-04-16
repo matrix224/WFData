@@ -63,6 +63,10 @@ If the second option is enabled, then this will send any parsed data to a specif
 
 By default, neither of these options are enabled. So when configuring this, make sure to enable and configure them up as desired.
 
+**PLEASE NOTE**
+When you register with the WFDataService, you are assigned an ID. This is stored in a file under your specified 'cfg' directory. In addition, AES keys for contacting the WFDataService are stored in your DB file, by default under the 'data' directory.
+If you copy your WFDataManager directory, this will essentially just be a copy of your current client. If you intend to run this for two or more separate server groups (e.g. you run groups of servers on different VMs), you **must** use clean client installations for each group you run this on to ensure it will function as expected.
+
 ----
 
 ### Manager Config Files

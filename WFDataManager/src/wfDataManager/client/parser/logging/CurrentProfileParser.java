@@ -25,7 +25,7 @@ public class CurrentProfileParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException {
 		String curDir = CURRENT_PROFILE_PATTERN.group(1);
 		serverData.setCurrentProfileDir(curDir);
 		return ParseResultType.OK;

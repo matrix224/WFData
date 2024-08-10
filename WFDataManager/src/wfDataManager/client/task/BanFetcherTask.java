@@ -2,8 +2,8 @@ package wfDataManager.client.task;
 
 import com.google.gson.JsonObject;
 
+import jdtools.logging.Log;
 import wfDataManager.client.util.RequestUtil;
-import wfDataModel.model.logging.Log;
 
 /**
  * Task to periodically ask the service for any new shared bans

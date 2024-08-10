@@ -8,6 +8,11 @@ import wfDataManager.client.db.ServerDao;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
 
+/**
+ * Cache to manage server data information
+ * @author MatNova
+ *
+ */
 public final class ServerDataCache {
 
 	private static ServerDataCache singleton;

@@ -5,10 +5,10 @@ import java.util.Map;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.db.RetryDataDao;
 import wfDataManager.client.util.RequestUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.type.GameDataType;
 

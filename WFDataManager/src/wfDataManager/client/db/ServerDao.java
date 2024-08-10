@@ -8,16 +8,16 @@ import java.util.List;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import jdtools.logging.Log;
 import wfDataManager.client.db.manager.ResourceManager;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 
 /**
  * Dao class for managing server status data
  * @author MatNova
  *
  */
-public class ServerDao {
+public final class ServerDao {
 
 	private static final String LOG_ID = ServerDao.class.getSimpleName();
 

@@ -26,7 +26,7 @@ import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 
 /**
  * Util for handling various authentication / encryption / decryption tasks
@@ -35,6 +35,7 @@ import wfDataModel.model.logging.Log;
  */
 public final class AuthUtil {
 
+	public static String DIFFIE_HELLMAN = "DH";
 	// P and G values for DiffieHellman calculations
 	private static BigInteger P = new BigInteger("133790237483147974554807246513602695719886215618865437486222514657300888741230864248355549958361665695613500272512792773265057305114074705723466961707744821493766460202517971203449864536208966325281429815403456732486788197410629008957160889380135193110291253149299917890337086237460321740829615241209754047387");
 	private static BigInteger G = new BigInteger("2");
@@ -90,7 +91,7 @@ public final class AuthUtil {
 	 * @throws NoSuchAlgorithmException
 	 */
 	public static KeyPair generateDiffieHellman() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException {
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance("DH"); 
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance(DIFFIE_HELLMAN); 
 		DHParameterSpec dhSpec = new DHParameterSpec( P, G); 
 		kpg.initialize(dhSpec);
 		return kpg.generateKeyPair(); 
@@ -107,7 +108,7 @@ public final class AuthUtil {
 	 * @throws IllegalStateException
 	 */
 	public static byte[] generateAESFromDiffieHellman(KeyAgreement agreement, byte[] otherPublicKey) throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException, IllegalStateException {
-		KeyFactory kf = KeyFactory.getInstance("DH"); 
+		KeyFactory kf = KeyFactory.getInstance(DIFFIE_HELLMAN); 
 		X509EncodedKeySpec bx509Spec = new X509EncodedKeySpec(otherPublicKey);
 		PublicKey pk = kf.generatePublic(bx509Spec);
 		agreement.doPhase(pk, true);

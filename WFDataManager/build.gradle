@@ -8,8 +8,17 @@ sourceSets.main.resources.srcDirs = ['resources']
 mainClassName = 'wfDataManager.client.main.WFDataManager'
 version = loadVersion().getVersion()
 
+def javaVersion = JavaVersion.VERSION_1_8;
+sourceCompatibility = javaVersion;
+targetCompatibility = javaVersion; // defaults to sourceCompatibility
+
+// Forces this to be compliant with Java 8 when compiling if compiling using a newer Java version
+tasks.withType(JavaCompile) {
+    options.release = 8
+}
+
 dependencies {
-      implementation 'org.xerial:sqlite-jdbc:3.8.7'
+      implementation 'org.xerial:sqlite-jdbc:3.44.1.0'
       implementation 'com.zaxxer:HikariCP:4.0.3'
       implementation project(':WFDataModel')
 }
@@ -19,6 +28,7 @@ configurations {
 }
 
 repositories {
+  mavenLocal()
   mavenCentral() // for transitive dependencies
 }
 

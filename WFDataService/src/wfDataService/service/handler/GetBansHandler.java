@@ -7,8 +7,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.codes.ResponseCode;
 import wfDataModel.service.data.BanData;
 import wfDataModel.service.data.ResponseData;
@@ -23,7 +23,7 @@ import wfDataService.service.data.ServerClientData;
 public class GetBansHandler extends BaseHandler {
 
 	@Override
-	protected ResponseData getResponse(HttpExchange exchange, ServerClientData clientData, JsonObject inputObj) {
+	protected ResponseData getResponse(HttpExchange exchange, ServerClientData clientData, JsonObject inputObj, String requestVersion) {
 		String response = null;
 		int rc = ResponseCode.SUCCESS;
 		int httpCode = HttpURLConnection.HTTP_OK;

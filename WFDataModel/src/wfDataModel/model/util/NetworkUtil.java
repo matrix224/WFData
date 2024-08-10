@@ -3,8 +3,8 @@ package wfDataModel.model.util;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 
 /**
  * Util for network related tasks
@@ -13,6 +13,8 @@ import wfDataModel.model.logging.Log;
  */
 public final class NetworkUtil {
 
+	private static int transCount;
+	
 	public static boolean isPrivateIP(String ipOrHost) {
 		InetAddress addr = null;
 		if (!MiscUtil.isEmpty(ipOrHost)) {
@@ -25,4 +27,8 @@ public final class NetworkUtil {
 		return addr != null && addr.isSiteLocalAddress();
 	}
 
+	public static synchronized String generateTransactionID(int sid) {
+		return System.currentTimeMillis() + "." + sid + "." + (int)(Math.random() * Integer.MAX_VALUE) + "." + (transCount++);
+	}
+	
 }

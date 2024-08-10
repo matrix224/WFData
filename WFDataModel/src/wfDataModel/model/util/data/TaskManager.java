@@ -6,8 +6,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 
 /**
  * Base implementation for task managers to be used for executing specific tasks in the service and client

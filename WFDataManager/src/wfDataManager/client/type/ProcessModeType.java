@@ -6,5 +6,5 @@ package wfDataManager.client.type;
  *
  */
 public enum ProcessModeType {
-	NORMAL, HISTORICAL;
+	NORMAL, HISTORICAL, TEST;
 }

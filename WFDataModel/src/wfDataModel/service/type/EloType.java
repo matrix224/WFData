@@ -1,6 +1,6 @@
 package wfDataModel.service.type;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 
 /**
  * The elo type for a game mode
@@ -10,7 +10,8 @@ import wfDataModel.model.logging.Log;
 public enum EloType {
 
 	RC(0),
-	NON_RC(2);
+	NON_RC(2),
+	TOTAL(999999); // Made up value for data aggregated across all game modes
 	
 	private int code;
 	

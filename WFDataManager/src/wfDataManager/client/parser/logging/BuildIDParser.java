@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import wfDataManager.client.cache.WarframeItemCache;
 import wfDataManager.client.type.ParseResultType;
 import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 
 /**
  * Parser for getting and setting the current server build ID
@@ -29,7 +29,7 @@ public class BuildIDParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException {
 		long buildId = Long.valueOf(BUILD_ID_PATTERN.group(1).replaceAll("\\.", "")); // We create our own build ID from the build label (comprised of date and time), since the actual build IDs in the log are not always sequential
 		
 		// Don't do this if historical. Not needed and will also repeatedly do it as time goes on and builds update

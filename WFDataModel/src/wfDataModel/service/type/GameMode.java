@@ -1,6 +1,6 @@
 package wfDataModel.service.type;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 
 /**
  * The game mode IDs
@@ -9,19 +9,26 @@ import wfDataModel.model.logging.Log;
  */
 public enum GameMode {
 
-	CTF(406000),
-	TA(406009),
-	FFA(406010),
-	LUNARO(406011),
-	CTF_VAR(406012),
-	TA_VAR(406013),
-	FFA_VAR(406014),
-	VT(406015);
+	CTF(406000, 3),
+	TA(406009, 2),
+	FFA(406010, 1),
+	LUNARO(406011, 4),
+	CTF_VAR(406012, 8),
+	TA_VAR(406013, 5),
+	FFA_VAR(406014, 6),
+	VT(406015, 7),
+	TOTAL(999999); // Made up value for data aggregated across all game modes
 	
 	private int gameId;
+	private int displayOrder;
 	
 	private GameMode(int gameId) {
+		this(gameId, Integer.MAX_VALUE);
+	}
+	
+	private GameMode(int gameId, int displayOrder) {
 		this.gameId = gameId;
+		this.displayOrder = displayOrder;
 	}
 	
 	public static GameMode idToType(int id) {
@@ -43,5 +50,9 @@ public enum GameMode {
 	
 	public int getId() {
 		return gameId;
+	}
+	
+	public int getDisplayOrder() {
+		return displayOrder;
 	}
 }

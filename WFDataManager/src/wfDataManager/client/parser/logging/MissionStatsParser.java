@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import wfDataManager.client.type.ParseResultType;
 import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.PlayerUtil;
 
 /**
@@ -50,12 +50,12 @@ public class MissionStatsParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException {
 		if (MISSION_STATS_START_PATTERN.matches()) {
 			// If this is historical, we just keep going once it finds start of mission stats under the assumption that the log is already finished
 			// Otherwise for normal, we only keep going if this is found as the first line of the read
-			if (offset == serverData.getLogPosition() || ProcessModeType.HISTORICAL.equals(ClientSettingsUtil.getProcessMode())) {
-				if (ProcessModeType.HISTORICAL.equals(ClientSettingsUtil.getProcessMode())) {
+			if (offset == serverData.getLogPosition() || ProcessModeType.HISTORICAL.equals(ClientSettingsUtil.getProcessMode()) || ProcessModeType.TEST.equals(ClientSettingsUtil.getProcessMode())) {
+				if (ProcessModeType.HISTORICAL.equals(ClientSettingsUtil.getProcessMode()) || ProcessModeType.TEST.equals(ClientSettingsUtil.getProcessMode())) {
 					Log.debug(LOG_ID + ".parse() : Found mission stat start, will get stats");
 				} else {
 					Log.debug(LOG_ID + ".parse() : Found mission stat start at beginning of read, will get stats");
@@ -71,7 +71,8 @@ public class MissionStatsParser extends BaseLogParser {
 			return ParseResultType.END_MISSION;
 		} else {
 			String player = PlayerUtil.cleanPlayerName(MISSION_STATS_DATA_PATTERN.group(1));
-			PlayerData p = serverData.getPlayerByName(player);
+			int platform = PlayerUtil.getPlatform(MISSION_STATS_DATA_PATTERN.group(1));
+			PlayerData p = serverData.getPlayerByNameAndPlatform(player, platform);
 			int kills = Integer.parseInt(MISSION_STATS_DATA_PATTERN.group(2));
 			int deaths = Integer.parseInt(MISSION_STATS_DATA_PATTERN.group(3));
 			int mechanics = Integer.parseInt(MISSION_STATS_DATA_PATTERN.group(4));

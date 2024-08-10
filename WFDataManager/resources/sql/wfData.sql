@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS `weapon_data` (
 CREATE TABLE IF NOT EXISTS `weapon_info` (
   `weapon` varchar(64) NOT NULL
 ,  `weapon_real` varchar(64) DEFAULT NULL
+,  `weapon_type` varchar(16) DEFAULT 'UNKNOWN'
 ,  PRIMARY KEY (`weapon`)
 );
 CREATE TABLE IF NOT EXISTS `weekly_data` (
@@ -50,18 +51,20 @@ CREATE TABLE IF NOT EXISTS `weekly_data` (
 ,  `mechanics` integer NOT NULL
 ,  `captures` integer NOT NULL
 ,  `rounds` integer NOT NULL
-,  `wins` integer NOT NULL DEFAULT '0'
 ,  `game_mode` integer NOT NULL
 ,  `elo` integer NOT NULL
 ,  `weapon_kills` varchar(4096) DEFAULT NULL
 ,  `killed_by` varchar(16384) DEFAULT NULL
-,  `total_time` integer NOT NULL DEFAULT '0'
-,  PRIMARY KEY (`elo`,`week_date`,`uid`,`game_mode`)
+,  `total_time` varchar(128) NOT NULL
+,  `platform` integer NOT NULL
+,  PRIMARY KEY (`elo`,`week_date`,`uid`,`game_mode`,`platform`)
 );
 CREATE TABLE IF NOT EXISTS `player_profile` (
   `name` varchar(64) NOT NULL
 ,  `uid` varchar(64) NOT NULL
+,  `aid` varchar(64) DEFAULT NULL
 ,  `past_names` varchar(4096) DEFAULT NULL
+,  `past_uids` varchar(4096) DEFAULT NULL
 ,  `platform` integer NOT NULL DEFAULT 0
 ,  PRIMARY KEY (`uid`)
 );
@@ -96,6 +99,15 @@ CREATE TABLE IF NOT EXISTS `log_history` (
   `log_time` int(20) NOT NULL,
   PRIMARY KEY (`id`,`log_time`)
 );
+CREATE TABLE IF NOT EXISTS `tracked_players` (
+  `uid` varchar(64) NOT NULL,
+  `known_ips` varchar(2048),
+  `known_alts` varchar(4096),
+  PRIMARY KEY (`uid`)
+);
 DROP INDEX IF EXISTS "idx_activity_data";
 CREATE INDEX "idx_activity_data" ON "activity_data" (`game_mode`,`elo`,`time`);
+
+INSERT INTO `process_vars` (var_name, var_value) VALUES ('DBVER', '1.1.1');
+
 END TRANSACTION;

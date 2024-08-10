@@ -51,5 +51,5 @@ public abstract class BaseLogParser {
 	 * @return
 	 * @throws ParseException
 	 */
-	public abstract ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException;
+	public abstract ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException;
 }

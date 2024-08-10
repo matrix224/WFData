@@ -46,12 +46,20 @@ public class LoadoutData {
 		return gameModes.isEmpty() || gameModes.contains(gameMode);
 	}
 	
+	public Set<GameMode> getGameModes() {
+		return gameModes;
+	}
+	
 	public void setElo(EloType elo) {
 		this.elo = elo;
 	}
 	
 	public boolean isForElo(EloType elo) {
 		return this.elo == null || this.elo.equals(elo);
+	}
+	
+	public EloType getElo() {
+		return elo;
 	}
 	
 	public int getLoadoutID() {

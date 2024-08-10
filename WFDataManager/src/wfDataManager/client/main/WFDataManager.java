@@ -7,20 +7,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-import com.google.gson.JsonObject;
-
+import jdtools.exception.InvalidArgException;
+import jdtools.exception.ProcessingException;
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.cache.BanManagerCache;
+import wfDataManager.client.db.DBManagementDao;
 import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataManager.client.util.ClientTaskUtil;
 import wfDataManager.client.util.RequestUtil;
 import wfDataManager.client.versioning.BuildVersion;
-import wfDataModel.model.exception.InvalidArgException;
-import wfDataModel.model.exception.ProcessingException;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.processor.commands.CommandProcessor;
-import wfDataModel.service.codes.JSONField;
 
 public class WFDataManager {
 	private static final String LOG_ID = WFDataManager.class.getSimpleName();
@@ -28,7 +26,7 @@ public class WFDataManager {
 	private static final String OPT_MODE = "mode";
 
 	private static final List<String> VALID_OPTS = Arrays.asList(OPT_MODE);
-	private static final List<ProcessModeType> VALID_MODES = Arrays.asList(ProcessModeType.NORMAL, ProcessModeType.HISTORICAL);
+	private static final List<ProcessModeType> VALID_MODES = Arrays.asList(ProcessModeType.NORMAL, ProcessModeType.HISTORICAL, ProcessModeType.TEST);
 	
 	public static boolean shouldExit = false;
 
@@ -38,7 +36,6 @@ public class WFDataManager {
 		ProcessModeType mode = null;
 
 		try {
-
 			if (!ClientSettingsUtil.settingsLoaded()) {
 				throw new ProcessingException("Issue occurred loading settings");
 			}
@@ -58,24 +55,19 @@ public class WFDataManager {
 
 			Log.debug(LOG_ID + "() : Config -> ServerLogsDir=" + ClientSettingsUtil.getServerLogsDirStr() + ", Using DB=" + ClientSettingsUtil.persist() + ", Debug Mode=" + Log.isDebugMode());
 
+			// Perform any DB upgrades that may be necessary before we start any processing
+			DBManagementDao.upgradeDB();
+			
 			Log.info("///////////////////////////////////////////////////////////////////");
 			Log.info("WFDataManager, version: " + BuildVersion.getBuildVersion());
 			Log.info("Starting processing...");
 
-			
-			
 			if (ClientSettingsUtil.serviceEnabled()) {
 				if (MiscUtil.isEmpty(ClientSettingsUtil.getDisplayName())) {
 					throw new ProcessingException("Setting for displayName is required if using the service");
 				}
 
-				JsonObject dataObj = new JsonObject();
-				dataObj.addProperty(JSONField.SERVER_NAME, ClientSettingsUtil.getDisplayName());
-				if (!MiscUtil.isEmpty(ClientSettingsUtil.getRegion())) {
-					dataObj.addProperty(JSONField.REGION, ClientSettingsUtil.getRegion());
-				}
-
-				RequestUtil.sendRegisterRequest(dataObj);
+				RequestUtil.sendRegisterRequest();
 
 				if (ClientSettingsUtil.getServerID() == 0) {
 					throw new ProcessingException("No ID was assigned for service use");
@@ -94,14 +86,13 @@ public class WFDataManager {
 				}
 				
 				if (ClientSettingsUtil.enableBanning()) {
-					BanManagerCache.singleton().prepareCache();
 					ClientTaskUtil.addTask(ClientTaskUtil.TASK_BAN_CHECKER);
 
 					if (ClientSettingsUtil.enableBanSharing()) {
 						ClientTaskUtil.addTask(ClientTaskUtil.TASK_BAN_FETCHER);
 					}
 				}
-			} else if (ProcessModeType.HISTORICAL.equals(mode)) { 
+			} else if (ProcessModeType.HISTORICAL.equals(mode) || ProcessModeType.TEST.equals(mode)) { 
 				if (!anyLogDirsExist(ClientSettingsUtil.getHistoricalLogsDirs())) {
 					throw new InvalidArgException("Unknown historicalLogsDir supplied -> " + ClientSettingsUtil.getHistoricalLogsDirStr());
 				}

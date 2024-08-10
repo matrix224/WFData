@@ -10,11 +10,12 @@ import com.google.gson.JsonObject;
 import jdtools.http.HTTPRequest;
 import jdtools.http.HTTPRequestListener;
 import jdtools.http.HTTPResponseData;
+import jdtools.logging.Log;
 import jdtools.util.HTTPUtil;
 import wfDataManager.client.db.ProcessorVarDao;
 import wfDataManager.client.parser.http.BaseResponseParser;
 import wfDataManager.client.util.ClientSettingsUtil;
-import wfDataModel.model.logging.Log;
+import wfDataManager.client.versioning.BuildVersion;
 import wfDataModel.model.util.AuthUtil;
 import wfDataModel.service.codes.HeaderField;
 import wfDataModel.service.codes.JSONField;
@@ -40,6 +41,10 @@ public abstract class BaseServiceRequest implements HTTPRequestListener {
 			headers.put(HeaderField.SEED, Base64.getEncoder().encodeToString(aesSeed));
 			headers.put(HeaderField.SERVER_ID, String.valueOf(ClientSettingsUtil.getServerID()));
 		}
+		if (!jsonData.has(JSONField.VERSION)) {
+			jsonData.addProperty(JSONField.VERSION, BuildVersion.getBuildVersion());
+		}
+		
 		String data = jsonData.toString();
 		RequestType requestType = getRequestType();
 		String url = "http://" + ClientSettingsUtil.getServiceHost() + ":" + ClientSettingsUtil.getServicePort() + requestType.getEndPoint();

@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import wfDataManager.client.type.ParseResultType;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.PlayerUtil;
 
 /**
@@ -31,9 +31,10 @@ public class LunaroGoalParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException {
 		String playerName = PlayerUtil.cleanPlayerName(LUNARO_GOAL_PATTERN.group(1));
-		PlayerData player = serverData.getPlayerByName(playerName);
+		int platform = PlayerUtil.getPlatform(LUNARO_GOAL_PATTERN.group(1));
+		PlayerData player = serverData.getPlayerByNameAndPlatform(playerName, platform);
 		if (player != null) {
 			// Note we store goals in the 'mechanics' field since this is where it comes from in the mission stats
 			player.setMechanics(player.getMechanics() + 1);

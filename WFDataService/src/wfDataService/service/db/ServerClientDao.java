@@ -7,8 +7,10 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
+import com.google.gson.JsonParser;
+
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.type.RegionType;
 import wfDataService.service.data.ServerClientData;
 import wfDataService.service.db.manager.ResourceManager;
@@ -34,9 +36,13 @@ public class ServerClientDao {
 		 	rs = ps.executeQuery();
 		 	while (rs.next()) {
 		 		ServerClientData clientData = new ServerClientData(rs.getInt("SID"), rs.getString("DISPLAY_NAME"));
+		 		String clientProps = rs.getString("PROPERTIES");
 		 		clientData.setLastBanPollTime(rs.getLong("LAST_BAN_POLL"));
 		 		clientData.setRegion(RegionType.codeToType(rs.getInt("REGION")));
 		 		clientData.setValidated(rs.getInt("VALIDATED") == 1);
+		 		if (!MiscUtil.isEmpty(clientProps)) {
+		 			clientData.setServerClientProperties(JsonParser.parseString(clientProps).getAsJsonObject());
+		 		}
 		 		String nameOverride = rs.getString("NAME_OVERRIDE");
 		 		if (!MiscUtil.isEmpty(nameOverride)) {
 		 			clientData.setNameOverridden(true);
@@ -59,21 +65,23 @@ public class ServerClientDao {
 		
 		try {
 		 	conn = ResourceManager.getDBConnection();
-		 	ps = conn.prepareStatement("UPDATE MANAGER_CLIENT SET DISPLAY_NAME = ?, REGION=?, LAST_BAN_POLL=?, VALIDATED=? WHERE SID=?");
+		 	ps = conn.prepareStatement("UPDATE MANAGER_CLIENT SET DISPLAY_NAME = ?, REGION=?, LAST_BAN_POLL=?, VALIDATED=?, PROPERTIES=? WHERE SID=?");
 		 	ps.setString(1, data.getDisplayName());
 		 	ps.setInt(2, data.getRegion().getCode());
 		 	ps.setLong(3, data.getLastBanPollTime());
 		 	ps.setInt(4, data.isValidated() ? 1 : 0);
-		 	ps.setInt(5, data.getServerID());
+		 	ps.setString(5, data.getServerClientProperties() != null ? data.getServerClientProperties().toString() : null);
+		 	ps.setInt(6, data.getServerClientID());
 		 	int updated = ps.executeUpdate();
 		 	if (updated == 0) {
 		 		ResourceManager.releaseResources(ps);
-			 	ps = conn.prepareStatement("INSERT INTO MANAGER_CLIENT (SID, DISPLAY_NAME, REGION, LAST_BAN_POLL, VALIDATED) VALUES (?,?,?,?,?)");
-			 	ps.setInt(1, data.getServerID());
+			 	ps = conn.prepareStatement("INSERT INTO MANAGER_CLIENT (SID, DISPLAY_NAME, REGION, LAST_BAN_POLL, VALIDATED, PROPERTIES) VALUES (?,?,?,?,?,?)");
+			 	ps.setInt(1, data.getServerClientID());
 			 	ps.setString(2, data.getDisplayName());
 			 	ps.setInt(3, data.getRegion().getCode());
 			 	ps.setLong(4, data.getLastBanPollTime());
 			 	ps.setInt(5, data.isValidated() ? 1 : 0);
+			 	ps.setString(6, data.getServerClientProperties() != null ? data.getServerClientProperties().toString() : null);
 			 	ps.executeUpdate();
 		 	}
 		} catch (Exception e) {

@@ -6,26 +6,24 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collection;
 
+import jdtools.logging.Log;
 import wfDataManager.client.db.manager.ResourceManager;
 import wfDataModel.model.data.ActivityData;
-import wfDataModel.model.logging.Log;
 
 /**
  * Dao class for adding activity data to the DB
  * @author MatNova
  *
  */
-public class ActivityDao {
+public final class ActivityDao {
 	private static final String LOG_ID = ActivityDao.class.getSimpleName();
 
-	public static boolean addActivityData(Collection<ActivityData> activities, int gameMode, int elo) {
-		Connection conn = null;
+	public static boolean addActivityData(Connection conn, Collection<ActivityData> activities, int gameMode, int elo) {
 		PreparedStatement ps = null;
 		boolean isSuccess = true;
 
 
 		try {
-			conn = ResourceManager.getDBConnection();
 			ps = conn.prepareStatement("INSERT INTO ACTIVITY_DATA (GAME_MODE,ELO,TIME,COUNT) VALUES (?,?,?,?)");
 
 			for (ActivityData activity : activities) {
@@ -43,7 +41,7 @@ public class ActivityDao {
 			Log.error(LOG_ID + ".addActivityData() : Error occurred -> ", e);
 			isSuccess = false;
 		} finally {
-			ResourceManager.releaseResources(conn, ps);
+			ResourceManager.releaseResources(ps);
 		}
 		return isSuccess;
 	}

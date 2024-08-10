@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 import wfDataModel.model.util.NetworkUtil;
 import wfDataModel.service.data.BanData;
 import wfDataModel.service.data.BanSpec;
@@ -45,7 +45,7 @@ public class BanDataCache {
 				cacheSpec.setPrimary(spec.isPrimary());
 				cacheSpec.setIsProxy(spec.isProxy());
 				cacheSpec.setReportedBy(reporter.getDisplayName());
-				cacheSpec.setReportingID(reporter.getServerID());
+				cacheSpec.setReportingID(reporter.getServerClientID());
 				numAdded++;
 			}
 
@@ -62,7 +62,7 @@ public class BanDataCache {
 		for (BanData data : banData.values()) {
 			BanData banCopy = null;
 			for (BanSpec spec : data.getBanSpecs()) {
-				if (spec.getBanTime() != null && spec.getBanTime() > requester.getLastBanPollTime() && spec.getReportingID() != requester.getServerID()) {
+				if (spec.getBanTime() != null && spec.getBanTime() > requester.getLastBanPollTime() && spec.getReportingID() != requester.getServerClientID()) {
 					if (banCopy == null) {
 						banCopy = new BanData(data.getPlayerName(), data.getUID());
 					}
@@ -83,4 +83,14 @@ public class BanDataCache {
 		return bans;
 	}
 
+	public void updateBanData(String oldUID, String newUID) {
+		if (banData.containsKey(oldUID)) {
+			synchronized (banData) {
+				BanData data = banData.get(oldUID);
+				data.setUID(newUID);
+				banData.put(newUID, data);
+				banData.remove(oldUID);
+			}
+		}
+	}
 }

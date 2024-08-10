@@ -8,12 +8,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import jdtools.annotation.SettingData;
+import jdtools.logging.Log;
+import jdtools.settings.SettingsCfg;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.ClientSettingsUtil;
-import wfDataModel.model.annotation.SettingData;
-import wfDataModel.model.logging.Log;
-import wfDataModel.model.util.data.SettingsCfg;
 
 /**
  * Client setting config manager class, with use facilitated by the {@link ClientSettingsUtil} class
@@ -35,22 +35,33 @@ public class ClientSettingsCfg extends SettingsCfg {
 	private String historicalLogPattern;
 	@SettingData(cfgName="cleanServerProfiles", wrapper=Boolean.class)
 	private boolean cleanServerProfiles = false;
+	@SettingData(cfgName="cacheDir")
+	private String cacheDir = getUserDir() + "cache" + File.separator;
 	
 	@SettingData(cfgName="displayName")
 	private String displayName;
+	@SettingData(cfgName="host")
+	private String host;
 	@SettingData(cfgName="region")
 	private String region;
 	@SettingData(cfgName="serviceHost")
 	private String serviceHost;
 	@SettingData(cfgName="servicePort", wrapper=Integer.class)
 	private int servicePort;
-	@SettingData(cfgName="serviceTimeout", wrapper=Integer.class, minValue=1.0, maxValue=60.0)
+	@SettingData(cfgName="serviceTimeout", wrapper=Integer.class, minValue=10.0, maxValue=60.0)
 	private int serviceTimeout = 10;
 	@SettingData(cfgName="enableDataSharing", wrapper=Boolean.class)
 	private boolean enableDataSharing;
 	@SettingData(cfgName="enableAlerts", wrapper=Boolean.class)
 	private boolean enableAlerts;
 
+	@SettingData(cfgName="printServerData", wrapper=Boolean.class)
+	protected boolean printServerOutput = false;
+	@SettingData(cfgName="serverDataFile")
+	private String serverOutputFile = getUserDir() + File.separator + "data" + File.separator + "ServerData.json";
+	@SettingData(cfgName="customItemsConfig")
+	private String customItemsConfig = getUserDir() + File.separator + "cfg" + File.separator + "customItems.json";
+	
 	@SettingData(cfgName="persist", wrapper=Boolean.class)
 	private boolean persist;
 	
@@ -58,6 +69,8 @@ public class ClientSettingsCfg extends SettingsCfg {
 	private boolean enableBanning = false;
 	@SettingData(cfgName="enableBanSharing", wrapper=Boolean.class)
 	private boolean enableBanSharing = false;
+	@SettingData(cfgName="enableBanLoadoutSharing", wrapper=Boolean.class)
+	private boolean enableBanLoadoutSharing = false;
 	@SettingData(cfgName="enforceSharedBanLoadouts", wrapper=Boolean.class)
 	private boolean enforceLoadoutBans = true;
 	@SettingData(cfgName="banTime", wrapper=Integer.class)
@@ -126,13 +139,21 @@ public class ClientSettingsCfg extends SettingsCfg {
 
 	public void setProcessMode(ProcessModeType processMode) {
 		this.processMode = processMode;
-		if (ProcessModeType.HISTORICAL.equals(processMode)) {
-			Log.info(LOG_ID + ".setProcessMode() : Process is set to historical mode, will disable the following for this run: printServerData, enableBanning, enableAlerts, cleanServerProfiles. Will also override poll interval to " + ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL + "s");
+		if (ProcessModeType.HISTORICAL.equals(processMode) || ProcessModeType.TEST.equals(processMode)) {
 			printServerOutput = false;
 			enableBanning = false;
+			enableBanSharing = false;
+			enableBanLoadoutSharing = false;
 			enableAlerts = false;
 			cleanServerProfiles = false;
 			pollInterval = ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL;
+			if (ProcessModeType.TEST.equals(processMode)) {
+				Log.info(LOG_ID + ".setProcessMode() : Process is set to test mode, will disable the following for this run: printServerData, enableDataSharing, persist, enableBanning, enableBanSharing, enableBanLoadoutSharing, enableAlerts, cleanServerProfiles. Will also override poll interval to " + ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL + "s");
+				persist = false;
+				enableDataSharing = false;
+			} else {
+				Log.info(LOG_ID + ".setProcessMode() : Process is set to historical mode, will disable the following for this run: printServerData, enableBanning, enableBanSharing, enableBanLoadoutSharing, enableAlerts, cleanServerProfiles. Will also override poll interval to " + ClientSettingsUtil.HISTORICAL_POLLING_INTERVAL + "s");
+			}
 		}
 	}
 	
@@ -160,10 +181,18 @@ public class ClientSettingsCfg extends SettingsCfg {
 		return cleanServerProfiles;
 	}
 	
+	public String getCacheDir() {
+		return cacheDir;
+	}
+	
 	public String getDisplayName() {
 		return displayName;
 	}
 
+	public String getHost() {
+		return host;
+	}
+	
 	public String getRegion() {
 		return region;
 	}
@@ -188,6 +217,18 @@ public class ClientSettingsCfg extends SettingsCfg {
 		return enableAlerts;
 	}
 
+	public boolean printServerData() {
+		return printServerOutput;
+	}
+
+	public String getServerDataFile() {
+		return serverOutputFile;
+	}
+
+	public String getCustomItemsConfig() {
+		return customItemsConfig;
+	}
+	
 	public boolean persist() {
 		return persist;
 	}
@@ -200,6 +241,10 @@ public class ClientSettingsCfg extends SettingsCfg {
 		return enableBanSharing;
 	}
 
+	public boolean enableBanLoadoutSharing() {
+		return enableBanLoadoutSharing;
+	}
+	
 	public boolean enforceLoadoutBans() {
 		return enforceLoadoutBans;
 	}

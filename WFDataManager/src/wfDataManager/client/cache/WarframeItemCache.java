@@ -4,8 +4,14 @@ import java.io.File;
 
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.cache.WarframeItemCacheBase;
+import wfDataModel.service.type.WeaponType;
 
-public class WarframeItemCache extends WarframeItemCacheBase {
+/**
+ * Implementation of cache to manage Warframe item and weapon names
+ * @author MatNova
+ *
+ */
+public final class WarframeItemCache extends WarframeItemCacheBase {
 
 	private static WarframeItemCache singleton;
 
@@ -20,7 +26,7 @@ public class WarframeItemCache extends WarframeItemCacheBase {
 	}
 
 	public void addAllowedItem(String itemKey) {
-		addWarframeItem(itemKey, itemKey + "_"); // Append a '_' to the item name so we know in the DB that it is a candidate for being remapped later
+		addWarframeItem(itemKey, itemKey + "_", WeaponType.UNKNOWN); // Append a '_' to the item name so we know in the DB that it is a candidate for being remapped later
 	}
 
 	public synchronized boolean updateCacheIfNeeded(long buildId) {

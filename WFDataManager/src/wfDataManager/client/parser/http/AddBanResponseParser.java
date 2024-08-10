@@ -1,6 +1,6 @@
 package wfDataManager.client.parser.http;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 import wfDataModel.service.codes.ResponseCode;
 import wfDataModel.service.data.ResponseData;
 

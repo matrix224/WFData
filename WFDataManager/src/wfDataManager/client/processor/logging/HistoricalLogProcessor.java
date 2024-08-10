@@ -8,11 +8,11 @@ import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataManager.client.util.ClientTaskUtil;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.type.GameDataType;
 
 /**

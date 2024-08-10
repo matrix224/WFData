@@ -7,13 +7,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import jdtools.logging.Log;
 import wfDataManager.client.cache.WarframeItemCache;
 import wfDataManager.client.db.GameDataDao;
 import wfDataManager.client.type.ParseResultType;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.PlayerUtil;
 
 /**
@@ -31,27 +31,44 @@ import wfDataModel.model.util.PlayerUtil;
  *
  */
 public class PlayerKillParser extends BaseLogParser {
+	private Matcher ENTITY_KILLER_PATTERN; // Used to determine if certain killers are map entities and not players
+	private Matcher LEVEL_KILLER_PATTERN; // Used to determine if certain killers are player spawned entities (e.g. rumblers) or level entities (e.g. sentry turret) and not players
+
 	private Matcher WEAPON_PATTERN;
 	private Matcher RAW_KILL_PATTERN; // Some kill log messages just don't have a weapon, not sure if bullet jump or some status causes it
-	
+
 	@Override
 	protected List<Matcher> initMatchers() {
 		WEAPON_PATTERN = Pattern.compile(".*\\[Info\\]: (.+) was .* damage from (.+) using a (.+)").matcher("");
 		RAW_KILL_PATTERN = Pattern.compile(".*\\[Info\\]: (.+) was .* damage from (.+)$").matcher("");
+		ENTITY_KILLER_PATTERN = Pattern.compile(".*/([a-zA-Z]+)[\\d]*$").matcher(""); // Note this is not added to the list of matchers for this parser as it's only used internally here
+		LEVEL_KILLER_PATTERN = Pattern.compile(".*(a level [\\d]+ [a-zA-Z ]+)[\\d]*$").matcher("");  // Note this is not added to the list of matchers for this parser as it's only used internally here
 		return Arrays.asList(WEAPON_PATTERN, RAW_KILL_PATTERN);
 	}
-	
+
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) {
 		Matcher lineMatch = WEAPON_PATTERN.matches() ? WEAPON_PATTERN : RAW_KILL_PATTERN;
 		boolean hasWeapon = lineMatch.equals(WEAPON_PATTERN);
 
 		String victim = PlayerUtil.cleanPlayerName(lineMatch.group(1));
+		int vPlatform = PlayerUtil.getPlatform(lineMatch.group(1));
 		String killer = PlayerUtil.cleanPlayerName(lineMatch.group(2));
+		int kPlatform = -1;
+		
+		// If the killer is some kind of "level x entity" or a map entity, then we set the killer to the formatted name and don't do any platform lookup
+		// DamageTriggers might have full name in them (e.g. "/Layer2/DamageTrigger0"), so we'll just store as DamageTrigger instead
+		// Otherwise we assume this is a player and will try to get their platform for looking up their player data
+		if (LEVEL_KILLER_PATTERN.reset(killer).matches() || ENTITY_KILLER_PATTERN.reset(killer).matches()) {
+			killer = LEVEL_KILLER_PATTERN.matches() ? LEVEL_KILLER_PATTERN.group(1) : ENTITY_KILLER_PATTERN.group(1);
+		} else {
+			kPlatform = PlayerUtil.getPlatform(lineMatch.group(2));
+		}
+		
 		String weapon = hasWeapon ? lineMatch.group(3) : null;
-
-		PlayerData vp = serverData.getPlayerByName(victim);
-		PlayerData kp = serverData.getPlayerByName(killer);
+		
+		PlayerData vp = serverData.getPlayerByNameAndPlatform(victim, vPlatform);
+		PlayerData kp = serverData.getPlayerByNameAndPlatform(killer, kPlatform);
 
 		if (hasWeapon) {
 			// If this item can't be found in the valid item cache...
@@ -91,13 +108,15 @@ public class PlayerKillParser extends BaseLogParser {
 			}
 		}
 
-		vp.setDeaths(vp.getDeaths() + 1);
-		vp.setLastLogTime(lastLogTime);
+		if (vp != null) {
+			vp.setDeaths(vp.getDeaths() + 1);
+			vp.setLastLogTime(lastLogTime);
 
-		// TODO: Any better, more generic way to handle this? Or is DamageTrigger the only one that comes through in this format?
-		// DamageTriggers might have full name in them (e.g. "/Layer2/DamageTrigger0"), so just store as DamageTrigger instead
-		vp.addKilledBy(kp != null ? kp.getUID() : killer.contains("DamageTrigger") ? "DamageTrigger" : killer, weapon);
-
+			vp.addKilledBy(kp != null ? kp.getUID() : killer, weapon);
+		} else {
+			Log.warn(LOG_ID + ".parse() : Unknown victim player found! victim=" + victim + ", logTime=" + lastLogTime);
+		}
+		
 		// Certain nonsense things can be listed as killer (e.g. "/Layer2/DamageTrigger0", or "a level 30 RUMBLER")
 		// So don't count as an actual player kill if so
 		if (kp != null) {

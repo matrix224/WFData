@@ -13,4 +13,6 @@ public final class ResponseCode {
 	public static final int NEW_BANS = 6;
 	public static final int REGISTERED = 7;
 	public static final int ADD_DATA_ISSUE = 8;
+	public static final int ALREADY_PROCESSED = 9;
+	public static final int ALREADY_BEING_PROCESSED = 10;
 }

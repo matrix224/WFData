@@ -6,9 +6,9 @@ import java.util.Base64;
 import com.google.gson.GsonBuilder;
 
 import jdtools.http.HTTPResponseData;
+import jdtools.logging.Log;
 import wfDataManager.client.db.ProcessorVarDao;
 import wfDataManager.client.util.ClientSettingsUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.AuthUtil;
 import wfDataModel.service.codes.ResponseCode;
 import wfDataModel.service.data.ResponseData;

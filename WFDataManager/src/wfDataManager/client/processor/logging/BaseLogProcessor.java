@@ -9,7 +9,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -27,6 +27,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.cache.ServerDataCache;
 import wfDataManager.client.db.ActivityDao;
@@ -43,6 +44,8 @@ import wfDataManager.client.parser.logging.CurrentProfileParser;
 import wfDataManager.client.parser.logging.CurrentTimeParser;
 import wfDataManager.client.parser.logging.GPFParser;
 import wfDataManager.client.parser.logging.GameSettingsParser;
+import wfDataManager.client.parser.logging.GameStateParser;
+import wfDataManager.client.parser.logging.IntroductionRequestParser;
 import wfDataManager.client.parser.logging.LunaroGoalParser;
 import wfDataManager.client.parser.logging.MissionStatsParser;
 import wfDataManager.client.parser.logging.NRSIssueParser;
@@ -55,7 +58,6 @@ import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataManager.client.util.RequestUtil;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.type.GameDataType;
 
@@ -66,14 +68,15 @@ import wfDataModel.service.type.GameDataType;
  */
 public abstract class BaseLogProcessor {
 	
-	private static final Matcher TIME_PATTERN = Pattern.compile("^(\\d+)\\..*").matcher("");
+	protected static final Matcher TIME_PATTERN = Pattern.compile("^(\\d+)\\..*").matcher("");
 	protected static final String DEFAULT_SERVER_LOG_ID = "99";
 	protected String LOG_ID = getClass().getSimpleName();
 
 	protected long numRuns = 0;
 	protected Map<String, File> logFiles = new ConcurrentHashMap<String, File>(8); // LogID -> data. Start at 8, will increase on its own as needed
 	protected List<ServerData> serverInfos = new ArrayList<ServerData>();  // Servers that were included in current parse
-	protected List<BaseLogParser> parsers = Arrays.asList(new BindingParser(), new BuildIDParser(), new CephalonCaptureParser(), new CurrentDirectoryParser(), new CurrentProfileParser(), new CurrentTimeParser(), new GameSettingsParser(), new GPFParser(), new LunaroGoalParser(), new MissionStatsParser(), new NRSIssueParser(), new PlayerConnectionParser(), new PlayerJoinParser(), new PlayerKillParser(), new PlayerLeaveParser());
+	protected List<BaseLogParser> parsers = Arrays.asList(new BindingParser(), new BuildIDParser(), new CephalonCaptureParser(), new CurrentDirectoryParser(), new CurrentProfileParser(), new CurrentTimeParser(), new GameSettingsParser(), new GameStateParser(), new GPFParser(), 
+			new IntroductionRequestParser(), new LunaroGoalParser(), new MissionStatsParser(), new NRSIssueParser(), new PlayerConnectionParser(), new PlayerJoinParser(), new PlayerKillParser(), new PlayerLeaveParser());
 	private int jamThreshold = ClientSettingsUtil.getJamThreshold();
 	private boolean enableAlerts = ClientSettingsUtil.enableAlerts();
 	private boolean shouldPersist = ClientSettingsUtil.persist();
@@ -110,11 +113,11 @@ public abstract class BaseLogProcessor {
 				Log.warn(LOG_ID + ".processLogs() : Could not establish last line for " + f.getName() + ", skipping");
 			} else {
 				Log.info(LOG_ID + ".processLogs() : Processing for " + f.getName());
-				try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(Files.newInputStream(Path.of(f.getAbsolutePath()), StandardOpenOption.READ), StandardCharsets.UTF_8))) {
+				try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(Files.newInputStream(Paths.get(f.getAbsolutePath()), StandardOpenOption.READ), StandardCharsets.UTF_8))) {
 					long offset = 0;
 					String line = null;
 					
-					int lastLogTime = -1;
+					long lastLogTime = -1;
 					int lineLen = 0;
 					serverData.setIsParsing(true);
 
@@ -134,7 +137,7 @@ public abstract class BaseLogProcessor {
 
 						// Just for getting current seconds timestamp from line
 						if (TIME_PATTERN.reset(line).matches()) {
-							lastLogTime = Integer.valueOf(TIME_PATTERN.group(1));
+							lastLogTime = Long.valueOf(TIME_PATTERN.group(1));
 							if (serverData.getTimeStats().getRolloverTime() > 0 && lastLogTime >= serverData.getTimeStats().getRolloverTime()) {
 								Log.info(LOG_ID + ".processLogs() : Stopping parsing for " + logId + " due to date-rollover detection");
 								break;
@@ -220,7 +223,7 @@ public abstract class BaseLogProcessor {
 		boolean hasNonErrorServer = false;
 
 		try {
-			conn = ResourceManager.getDBConnection();
+			conn = ResourceManager.getDBConnection(false);
 
 			String jammedServers = "";
 			JsonObject allServerData = printServerData ? new JsonObject() : null;
@@ -279,7 +282,7 @@ public abstract class BaseLogProcessor {
 						}
 						
 						if (!MiscUtil.isEmpty(server.getServerActivity())) {
-							ActivityDao.addActivityData(server.getServerActivity(), server.getGameModeId(), server.getEloRating());
+							ActivityDao.addActivityData(conn, server.getServerActivity(), server.getGameModeId(), server.getEloRating());
 						}
 					}
 					if (Log.isDebugMode()) {
@@ -328,10 +331,13 @@ public abstract class BaseLogProcessor {
 				//new Emailer("Warframe Server Jam", "Server log may be jammed for ID(s) " + jammedServers).sendEmail();
 			}
 
+			conn.commit();
+			
 		} catch (Exception e) { 
 			Log.error(LOG_ID + ".submitData() : Error while storing data, will roll back -> ", e);
 			conn.rollback();
 			hasServerData = false; // Set this false here so we don't send anything to service
+			hasNonErrorServer = false; // Set this false here so we don't send anything to service
 			// If an error occurred, we roll back all server data
 			// The DB transaction is atomic across all servers, so we just roll them all back
 			// TODO: Can this be improved?

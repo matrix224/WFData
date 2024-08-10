@@ -5,19 +5,20 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Base64;
 
+import jdtools.logging.Log;
 import wfDataManager.client.db.manager.ResourceManager;
-import wfDataModel.model.logging.Log;
 
 /**
  * Dao class for managing certain process related variables
  * @author MatNova
  *
  */
-public class ProcessorVarDao {
+public final class ProcessorVarDao {
 
 	public static final String VAR_NRS_BUILD = "NRS_ALERT_BUILD";
 	public static final String VAR_SYM_KEY = "SKEY";
-
+	public static final String VAR_DB_VERSION = "DBVER";
+	
 	private static final String LOG_ID = ProcessorVarDao.class.getSimpleName();
 	
 	public static String getVar(String varName) {

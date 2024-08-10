@@ -1,5 +1,6 @@
 package wfDataModel.model.util;
 
+import java.util.Collection;
 import java.util.Map;
 
 import com.google.gson.Gson;
@@ -15,6 +16,22 @@ import jdtools.util.MiscUtil;
  */
 public final class DBUtil {
 
+	public static final String DEFAULT_VER = "1.0.0";
+	
+	/**
+	 * Given a Collection, will return it as a String represented in JSON format. <br/>
+	 * If the Collection is null, this will return null.
+	 * @param input
+	 * @return
+	 */
+	public static String createDBCollection(Collection<?> input) {
+		String data = null;
+		if (input != null) {
+			data = new GsonBuilder().disableHtmlEscaping().create().toJson(input).toString();
+		}
+		return data;
+	}
+	
 	/**
 	 * Given a map, will return it as a String represented in JSON format. <br/>
 	 * If the map is null, this will return null.

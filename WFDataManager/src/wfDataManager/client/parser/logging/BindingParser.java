@@ -26,7 +26,7 @@ public class BindingParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) {
 		if (BINDING_PATTERN.matches()) {
 			serverData.addProxyServer(BINDING_PATTERN.group(1));
 		} else {

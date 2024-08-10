@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import wfDataManager.client.type.ParseResultType;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 
 /**
  * Parser class for detecting when a GPF has occurred on a server
@@ -26,7 +26,7 @@ public class GPFParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException {
 		Log.warn(LOG_ID + ".parse() : A GPF occurred on server " + serverData.getId() + "!");
 		return ParseResultType.FINISH_LOG;
 	}

@@ -11,8 +11,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import jdtools.logging.Log;
 import wfDataManager.client.db.manager.ResourceManager;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.data.BanData;
 import wfDataModel.service.data.BanSpec;
 import wfDataModel.service.type.BanActionType;
@@ -22,14 +22,14 @@ import wfDataModel.service.type.BanActionType;
  * @author MatNova
  *
  */
-public class BanDao {
+public final class BanDao {
 
 	private static final String LOG_ID = BanDao.class.getSimpleName();
 
 	public static void updateBan(BanData data, String ip, BanActionType action) {
 		Connection conn = null;
 		PreparedStatement ps = null;
-		
+
 		try {
 			// For adding a ban, should only have one for a given IP and type at a time
 			// The primary key is: uid, ban_key, loadout_id, is_primary
@@ -37,7 +37,7 @@ public class BanDao {
 			conn = ResourceManager.getDBConnection();
 			ps = conn.prepareStatement(sql);
 			ps.setString(1, data.getUID());
-			
+
 			if (BanActionType.ADD.equals(action)) {
 				String reason = data.getBanReason(ip);
 				if (reason.length() > 256) {
@@ -123,5 +123,33 @@ public class BanDao {
 		}
 
 		return data;
+	}
+
+	public static void updateBanDataReferences(String oldUID, String newUID) {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			conn = ResourceManager.getDBConnection();
+			ps = conn.prepareStatement("UPDATE CURRENT_BANS SET UID=? WHERE UID=?");
+			ps.setString(1, newUID);
+			ps.setString(2, oldUID);
+			int result = ps.executeUpdate();
+			Log.info(LOG_ID + ".updateBanDataReferences() : Updated " + result + " current ban references for old UID " + oldUID);
+
+			ResourceManager.releaseResources(ps);
+
+			ps = conn.prepareStatement("UPDATE MARKED_PLAYERS SET UID=? WHERE UID=?");
+			ps.setString(1, newUID);
+			ps.setString(2, oldUID);
+			result = ps.executeUpdate();
+			Log.info(LOG_ID + ".updateBanDataReferences() : Updated " + result + " current marked player references for old UID " + oldUID);
+
+		} catch (Exception e) {
+			Log.error(LOG_ID + ".updateBanDataReferences() : Exception updating ban data -> " + e.getLocalizedMessage());
+		} finally {
+			ResourceManager.releaseResources(conn, ps);
+		}
+
 	}
 }

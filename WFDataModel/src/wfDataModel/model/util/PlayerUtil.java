@@ -4,8 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.type.PlatformType;
 
 /**
@@ -28,34 +28,34 @@ public final class PlayerUtil {
 	}
 	
 	/**
-	 * Given a raw player name (i.e. with platform code appended), will return what platform they are on.
+	 * Given a raw player name (i.e. with platform code appended), will return the platform code for the platform they are on. <br>
+	 * If no platform code is present in the name, this will assume it's from an older log (before cross platform play) and default to PC.
 	 * @param playerName
 	 * @return
 	 */
-	public static synchronized PlatformType getPlatform(String playerName) {
-		PlatformType type = PlatformType.UNKNOWN;
+	public static synchronized int getPlatform(String playerName) {
+		int platformCode = PlatformType.UNKNOWN.getCode();
 		if (!MiscUtil.isEmpty(playerName)) {
 			Matcher match = NON_PLAYERNAME_PATTERN.reset(playerName);
 			if (match.find()) {
 				String platformStr = match.group(1);
-				int platformCode = 0;
 				for (byte c : platformStr.getBytes(StandardCharsets.UTF_8)) {
 					platformCode += (c & 0xff);
 				}
-				type = PlatformType.codeToType(platformCode);
+				PlatformType type = PlatformType.codeToType(platformCode);
 				if (PlatformType.UNKNOWN.equals(type)) {
 					Log.warn("PlayerUtil.getPlatform() : Unknown platform for " + playerName + ", code=" + platformCode);
 				}
 			} else {
 				// This makes an assumption that if no platform byte is provided on the provided playername, it is an old log file and they're PC
 				Log.warn("PlayerUtil.getPlatform() : No platform code provided for player " + playerName + ", assuming platform is PC");
-				type = PlatformType.PC;
+				platformCode = PlatformType.PC.getCode();
 			}
 		} else {
 			Log.warn("PlayerUtil.getPlatform() : Given playerName is null or empty, defaulting platform to UNKNOWN");
 		}
 		
-		return type;
+		return platformCode;
 	}
 	
 }

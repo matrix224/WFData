@@ -1,6 +1,6 @@
 package wfDataService.service.util;
 
-import wfDataModel.model.exception.ProcessingException;
+import jdtools.exception.ProcessingException;
 import wfDataService.service.util.data.ServiceTaskManager;
 
 /**

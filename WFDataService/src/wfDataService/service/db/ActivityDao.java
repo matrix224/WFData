@@ -5,8 +5,8 @@ import java.sql.PreparedStatement;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
+import jdtools.logging.Log;
 import wfDataModel.model.data.ActivityData;
-import wfDataModel.model.logging.Log;
 import wfDataService.service.data.ServerClientData;
 import wfDataService.service.db.manager.ResourceManager;
 
@@ -32,7 +32,7 @@ public class ActivityDao {
 			ps.setInt(2, elo);
 			ps.setObject(3, Instant.ofEpochMilli(activity.getTimestamp()).atOffset(ZoneOffset.UTC));
 			ps.setInt(4, activity.getPlayerCount());
-			ps.setInt(5, server.getServerID());
+			ps.setInt(5, server.getServerClientID());
 			int result = ps.executeUpdate();
 			if (result != 1) {
 				Log.warn(LOG_ID + ".addActivityData() : Did not update server activity data for server " + server.getDisplayName() + ", gameMode " + gameMode + " elo " + elo);

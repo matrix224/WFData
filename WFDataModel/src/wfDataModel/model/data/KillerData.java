@@ -47,7 +47,7 @@ public class KillerData {
 	
 	public void addToWeaponKills(Map<String, Integer> weaponKills) {
 		for (String wep : weaponKills.keySet()) {
-			this.weaponKills.compute(wep, (k,v) -> v == null ? weaponKills.get(wep) : v + weaponKills.get(wep));
+			addToWeaponKills(wep, weaponKills.get(wep));
 		}
 	}
 	

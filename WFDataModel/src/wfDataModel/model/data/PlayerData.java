@@ -10,7 +10,6 @@ import jdtools.util.MiscUtil;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.type.EloType;
 import wfDataModel.service.type.GameMode;
-import wfDataModel.service.type.PlatformType;
 
 /**
  * Data model for storing information about a player that is in a server
@@ -24,7 +23,10 @@ public class PlayerData {
 	private String playerName;
 	@Expose()
 	@SerializedName(JSONField.USER_ID)
-	private String uid;
+	private String uid; // UID should persist across username changes except for PSN. This is why we also track accountID
+	@Expose()
+	@SerializedName(JSONField.ACCOUNT_ID)
+	private String aid; // AccountID is separate from UID. This should always persist across username changes
 	@Expose (serialize = false, deserialize = false) 
 	private String logId; // ID of server log they're in
 	@Expose (serialize = false, deserialize = false) 
@@ -33,7 +35,7 @@ public class PlayerData {
 	private int connHandle = -1; // The player's connection handle
 	@Expose()
 	@SerializedName(JSONField.PLATFORM)
-	private PlatformType platform;
+	private int platform;
 	@Expose()
 	private int kills; // Also passes for Lunaro
 	@Expose()
@@ -55,7 +57,7 @@ public class PlayerData {
 	@Expose()
 	private Map<String, Integer> weapons = new HashMap<String, Integer>(); // Weapon -> kills. Should only be stored per parsing session
 	@Expose (serialize = false, deserialize = false) 
-	private int lastLogTime; // The last second count in the log that data was read for this player
+	private long lastLogTime; // The last second count in the log that data was read for this player
 	@Expose()
 	private int totalTime; // Total time this player was in the server for the current data read (i.e. not persistent across reads)
 	@Expose ()
@@ -79,6 +81,14 @@ public class PlayerData {
 	public void setUID(String uid) {
 		this.uid = uid;
 	}
+	
+	public String getAccountID() {
+		return aid;
+	}
+
+	public void setAccountID(String aid) {
+		this.aid = aid;
+	}
 
 	public String getLogID() {
 		return logId;
@@ -96,11 +106,11 @@ public class PlayerData {
 		this.ipAndPort = ipAndPort;
 	}
 
-	public PlatformType getPlatform() {
+	public int getPlatform() {
 		return platform;
 	}
 
-	public void setPlatform(PlatformType platform) {
+	public void setPlatform(int platform) {
 		this.platform = platform;
 	}
 
@@ -237,7 +247,7 @@ public class PlayerData {
 		setLeftServer(false, getLastLogTime());
 	}
 
-	public void setLastLogTime(int lastLogTime) {
+	public void setLastLogTime(long lastLogTime) {
 		if (lastLogTime > 0) {
 			// If changing last log time and it's not the first time, update the current total time
 			// Also check to make sure the provided time is greater than the current one if set
@@ -249,7 +259,7 @@ public class PlayerData {
 		}
 	}
 
-	public int getLastLogTime() {
+	public long getLastLogTime() {
 		return lastLogTime;
 	}
 
@@ -257,7 +267,7 @@ public class PlayerData {
 		return totalTime;
 	}
 
-	public void setLeftServer(boolean leftServer, int lastLogTime) {
+	public void setLeftServer(boolean leftServer, long lastLogTime) {
 		if (leftServer != this.leftServer) {
 			setLastLogTime(lastLogTime);
 			this.leftServer = leftServer;

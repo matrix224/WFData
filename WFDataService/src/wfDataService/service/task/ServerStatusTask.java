@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 import wfDataModel.service.codes.JSONField;
 import wfDataService.service.cache.ServerClientCache;
 import wfDataService.service.data.ServerClientData;
@@ -40,13 +40,17 @@ public class ServerStatusTask implements Runnable {
 						regionData.addProperty(JSONField.MAX, 0);
 						regionData.addProperty(JSONField.TOTAL, 0);
 						regionData.addProperty(JSONField.OLDEST, Long.MAX_VALUE);
+						regionData.addProperty(JSONField.OUTDATED, false);
 						serverOutput.add(regionCode, regionData);
 					}
 					JsonObject serverStatusData = serverClient.getServerStatusData();
-					regionData.addProperty(JSONField.MAX, regionData.get(JSONField.MAX).getAsInt() + serverStatusData.get(JSONField.MAX).getAsInt());
-					regionData.addProperty(JSONField.TOTAL, regionData.get(JSONField.TOTAL).getAsInt() + serverStatusData.get(JSONField.TOTAL).getAsInt());
-					regionData.addProperty(JSONField.OLDEST, Math.min(regionData.get(JSONField.OLDEST).getAsLong(), serverStatusData.get(JSONField.OLDEST).getAsLong()));
-					regionArr.add(serverStatusData);
+					if (serverStatusData.getAsJsonArray(JSONField.DATA).size() > 0) {
+						regionData.addProperty(JSONField.MAX, regionData.get(JSONField.MAX).getAsInt() + serverStatusData.get(JSONField.MAX).getAsInt());
+						regionData.addProperty(JSONField.TOTAL, regionData.get(JSONField.TOTAL).getAsInt() + serverStatusData.get(JSONField.TOTAL).getAsInt());
+						regionData.addProperty(JSONField.OLDEST, Math.min(regionData.get(JSONField.OLDEST).getAsLong(), serverStatusData.get(JSONField.OLDEST).getAsLong()));
+						regionData.addProperty(JSONField.OUTDATED, regionData.get(JSONField.OUTDATED).getAsBoolean() || serverStatusData.get(JSONField.OUTDATED).getAsBoolean());
+						regionArr.add(serverStatusData);
+					}
 				}
 			}
 

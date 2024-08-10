@@ -24,7 +24,7 @@ public class GameSettingsParser extends BaseLogParser {
 	}
 	
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) {
 		serverData.setGameSettings(GAME_SETTINGS_PATTERN.group(1));
 		return ParseResultType.OK;
 	}

@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataModel.model.commands.BaseCmd;
-import wfDataModel.model.logging.Log;
 
 /**
  * Processor for loading and handling the execution of any defined commands

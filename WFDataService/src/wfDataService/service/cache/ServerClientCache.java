@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 import wfDataService.service.data.ServerClientData;
 import wfDataService.service.db.ServerClientDao;
 
@@ -32,7 +32,7 @@ public class ServerClientCache {
 	
 	private void init() {
 		for (ServerClientData data : ServerClientDao.fetchClientData()) {
-			clientData.put(data.getServerID(), data);
+			clientData.put(data.getServerClientID(), data);
 		}
 	}
 	
@@ -45,7 +45,7 @@ public class ServerClientCache {
 	}
 	
 	public void addClientData(ServerClientData data) {
-		clientData.put(data.getServerID(), data);
+		clientData.put(data.getServerClientID(), data);
 	}
 	
 	public void toggleValidation(int serverId, boolean isValidated) {

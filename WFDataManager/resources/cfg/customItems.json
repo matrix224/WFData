@@ -1,3 +1,7 @@
 {
-	"DamageTrigger":"DamageTrigger"
+	"DamageTrigger":{"itemName":"DamageTrigger","type":"UNKNOWN"},
+	"DarkSwordDaggerSingle":{"itemName":"Dark Split-Sword Heavy","type":"MELEE"},
+	"DarkSwordDaggerDuals":{"itemName":"Dark Split-Sword Dual","type":"MELEE"},
+	"VariantSnowBalls":{"itemName":"Solstice Spheres","type":"PRIMARY"},
+	"VariantXmasScythe":{"itemName":"Solstice Scythe","type":"MELEE"}
 }

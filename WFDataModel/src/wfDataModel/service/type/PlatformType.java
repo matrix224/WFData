@@ -10,7 +10,8 @@ public enum PlatformType {
 	XBOX(495),
 	PSN(496),
 	NSW(497),
-	MOBILE(498), // TODO: Assuming this
+	IOS(498),
+	ANDROID(499),  // TODO: Assuming this
 	UNKNOWN(0);
 	
 	private int code;

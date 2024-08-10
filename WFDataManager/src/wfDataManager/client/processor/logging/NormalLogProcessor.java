@@ -4,13 +4,13 @@ import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.cache.BanManagerCache;
 import wfDataManager.client.cache.ServerDataCache;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.type.GameDataType;
 
 /**

@@ -23,6 +23,8 @@ import wfDataModel.service.type.BanProtocolType;
 public class BanData {
 
 	public static final String PERM_BAN_IP = "PERM";
+	public static final String KICK_BAN_IP = "KICK";
+	public static final int KICK_DURATION = 7000; // Hardcoded value for kick ban duration set at 7 seconds (typical time it takes for a player to timeout of a match)
 
 	@Expose()
 	@SerializedName(JSONField.PLAYER_NAME)
@@ -48,6 +50,10 @@ public class BanData {
 
 	public String getUID() {
 		return UID;
+	}
+	
+	public void setUID(String UID) {
+		this.UID = UID;
 	}
 
 	public void addOffensiveLoadout(int loadoutID) {
@@ -137,9 +143,16 @@ public class BanData {
 	public boolean isPermanent() {
 		return getBanSpec(PERM_BAN_IP) != null;
 	}
+	
+	public boolean isKick() {
+		return getBanSpec(KICK_BAN_IP) != null;
+	}
 
+	// We replace ='s with -'s here because Windows Firewall does not like when there are multiple ='s in a row
+	// when inserting the ban. This would only happen with PS players since we turn their UID into base64 
+	// To be safe, just replace all ='s with -'s
 	public String getBanKey(String ipAndPort) {
-		return "WF_" + getUID() + "_" + ipAndPort;
+		return "WF_" + getUID().replaceAll("=", "-") + "_" + ipAndPort;
 	}
 
 	public String getBanKey(String ipAndPort, BanDirectionType direction) {

@@ -5,12 +5,12 @@ import java.util.List;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.cache.BanManagerCache;
 import wfDataManager.client.cache.ServerDataCache;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.data.PlayerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.codes.ResponseCode;
 import wfDataModel.service.data.BanData;
 import wfDataModel.service.data.BanSpec;
@@ -39,13 +39,13 @@ public class GetBansResponseParser extends BaseResponseParser {
 						for (BanSpec spec : banData.getBanSpecs()) {
 							// If this person has an active ban already on our side, then don't add anything
 							if (!ClientSettingsUtil.enforceLoadoutBans() || BanManagerCache.singleton().isBannedLoadout(spec.getLoadoutID())) {
-								if (!BanManagerCache.singleton().isCurrentlyBanned(banData.getUID()) && !spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary()))) {
+								if (!BanManagerCache.singleton().isCurrentlyBanned(banData.getUID()) && !spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary(), spec.isKick()))) {
 									BanManagerCache.singleton().manageBan(banData, BanActionType.ADD, spec.getIP());
 									numAdded++;
 									PlayerData player = ServerDataCache.singleton().getPlayer(banData.getUID());
 									if (player != null && !player.getIPAndPort().equals(spec.getIP())) {
 										Log.info(LOG_ID + ".parseData() : Received ban for player currently in server, and IP is different. Will add secondary ban for them -> player=" + banData.getPlayerName() + " (" + banData.getUID() + ")");
-										BanManagerCache.singleton().manageBan(banData, BanActionType.ADD, player.getIPAndPort(), "Ban evasion", ServerDataCache.singleton().getServerData(player.getLogID()).getServerPort());
+										BanManagerCache.singleton().manageBan(banData, BanActionType.ADD, player.getIPAndPort(), "Ban evasion");
 									}
 								} else {
 									Log.info(LOG_ID + ".parseData() : Received new ban from service, but user is already currently banned or ban would've already expired. Will ignore -> player=" + banData.getPlayerName() + " (" + banData.getUID() + ")");
@@ -61,7 +61,7 @@ public class GetBansResponseParser extends BaseResponseParser {
 				Log.error(LOG_ID + ".parseData() : Exception while parsing fetched bans, data=" + responseData.getResponse() +"   -> " + e.getLocalizedMessage());
 			}
 		} else if (ResponseCode.ERROR == responseData.getRC()) {
-			Log.warn(LOG_ID + ".parseData() : Error adding ban to service -> " + responseData.getResponse());
+			Log.warn(LOG_ID + ".parseData() : Error getting bans from service -> " + responseData.getResponse());
 		} else {
 			Log.warn(LOG_ID + ".parseData() : Unhandled RC: rc=" + responseData.getRC() + ", response=" + responseData.getResponse());
 		}		

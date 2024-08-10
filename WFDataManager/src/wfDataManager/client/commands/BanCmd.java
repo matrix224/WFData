@@ -1,11 +1,13 @@
 package wfDataManager.client.commands;
 
+import jdtools.logging.Log;
 import wfDataManager.client.cache.BanManagerCache;
 import wfDataManager.client.cache.ServerDataCache;
 import wfDataManager.client.db.GameDataDao;
+import wfDataManager.client.util.ClientSettingsUtil;
+import wfDataManager.client.util.RequestUtil;
 import wfDataModel.model.commands.BaseCmd;
 import wfDataModel.model.data.PlayerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.type.BanActionType;
 
 /**
@@ -23,19 +25,30 @@ public class BanCmd extends BaseCmd {
 	public String getDescription() {
 		StringBuilder desc = new StringBuilder("Insert or remove a permanent ban for a specified player UID").append("\n");
 		desc.append("ban add <UID> <?reason> - Add a permanent ban for the specified UID, with an optional reason \n");
-		desc.append("ban remove <UID> - Remove a permanent ban for the specified UID");
+		desc.append("ban remove <UID> - Remove a permanent ban for the specified UID \n");
+		desc.append("ban refresh - Refreshes the banned items config");
 		return desc.toString();
 	}
 
 	@Override
 	public void runCmd(String... args) {
-		if (args == null || args.length < 2 || (!args[0].equalsIgnoreCase("add") && !args[0].equalsIgnoreCase("remove"))) {
+		if (args == null || args.length < 1 || (!args[0].equalsIgnoreCase("add") && !args[0].equalsIgnoreCase("remove") && !args[0].equalsIgnoreCase("refresh")) || (!args[0].equalsIgnoreCase("refresh") && args.length < 2)) {
 			Log.warn("Invalid arguments supplied, usage: \n " + getDescription());
 		} else {
 			boolean add = args[0].equalsIgnoreCase("add");
-			String uid = args[1];
+			boolean refresh = args[0].equalsIgnoreCase("refresh");
+			String uid = !refresh ? args[1] : null;
 
-			if (add) {
+			if (refresh) {
+				Log.warn("Will refresh banned loadout list...");
+				if (BanManagerCache.singleton().prepareCache(true) && ClientSettingsUtil.enableBanning() && ClientSettingsUtil.enableBanLoadoutSharing()) {
+					try {
+						RequestUtil.sendRegisterRequest();
+					} catch (Throwable t) {
+						Log.error("Error while trying to re-register with service -> ", t);
+					}
+				}
+			} else if (add) {
 				String reason = args.length == 3 ? args[2] : "Permaban";
 				boolean inServer = false;
 				PlayerData player = ServerDataCache.singleton().getPlayer(uid);
@@ -53,7 +66,7 @@ public class BanCmd extends BaseCmd {
 					Log.info("Added permanent ban for UID " + uid + ", reason=" + reason);
 					if (inServer) {
 						// If this person is currently in a server, get them the hell out
-						BanManagerCache.singleton().manageBan(BanManagerCache.singleton().getBanData(uid), BanActionType.ADD, player.getIPAndPort());
+						BanManagerCache.singleton().manageBan(BanManagerCache.singleton().getBanData(uid), BanActionType.ADD, player.getIPAndPort(), reason);
 					}
 				}
 			} else {

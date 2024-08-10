@@ -6,10 +6,11 @@ import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.HttpServer;
 
-import wfDataModel.model.exception.ProcessingException;
-import wfDataModel.model.logging.Log;
+import jdtools.exception.ProcessingException;
+import jdtools.logging.Log;
 import wfDataModel.model.processor.commands.CommandProcessor;
 import wfDataModel.service.type.RequestType;
+import wfDataService.service.db.DBManagementDao;
 import wfDataService.service.handler.AddBanHandler;
 import wfDataService.service.handler.AddDataHandler;
 import wfDataService.service.handler.GetBansHandler;
@@ -26,15 +27,20 @@ import wfDataService.service.versioning.BuildVersion;
 public class WFDataService {
 
 	private static final int MAX_SHUTDOWN_DELAY = 10; // Max time in seconds server will wait to shut down
-
+	private static final String LOG_ID = WFDataService.class.getSimpleName();
+	
 	public static boolean shouldExit = false;
 	
 	public static void main(String[] args) {
+		int rc = 0;
 		try {
 
 			if (!ServiceSettingsUtil.settingsLoaded()) {
 				throw new ProcessingException("Issue occurred loading settings");
 			}
+			
+			// Perform any DB upgrades that may be necessary before we start any processing
+			DBManagementDao.upgradeDB();
 			
 			HttpServer server = HttpServer.create(new InetSocketAddress(ServiceSettingsUtil.getServicePort()), 0);
 			server.createContext(RequestType.REGISTER.getEndPoint(), new RegisterHandler());
@@ -64,8 +70,11 @@ public class WFDataService {
 			Log.info("WFDataService() : Service shut down");
 		} catch (Exception e) {
 			Log.error("WFDataService() : Exception occurred -> ", e);
+			rc = 2;
 		} finally {
 			ServiceTaskUtil.stopTasks();
+			Log.info(LOG_ID + "() : Shutting down with RC " + rc);
+			System.exit(rc);
 		}
 	}
 }

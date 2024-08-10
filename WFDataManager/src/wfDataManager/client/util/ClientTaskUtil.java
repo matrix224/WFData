@@ -1,7 +1,7 @@
 package wfDataManager.client.util;
 
+import jdtools.exception.ProcessingException;
 import wfDataManager.client.util.data.ClientTaskManager;
-import wfDataModel.model.exception.ProcessingException;
 
 /**
  * Utility class to facilitate the starting and stopping of client-specific tasks. <br>

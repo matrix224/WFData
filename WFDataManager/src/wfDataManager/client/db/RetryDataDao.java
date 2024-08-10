@@ -6,10 +6,10 @@ import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
 
+import jdtools.logging.Log;
 import wfDataManager.client.db.manager.ResourceManager;
-import wfDataModel.model.logging.Log;
 
-public class RetryDataDao {
+public final class RetryDataDao {
 	private static final String LOG_ID = RetryDataDao.class.getSimpleName();
 
 	public static void addRetryData(String dataStr) {

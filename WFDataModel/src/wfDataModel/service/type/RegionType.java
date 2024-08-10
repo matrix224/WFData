@@ -1,6 +1,6 @@
 package wfDataModel.service.type;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 
 /**
  * The types of regions

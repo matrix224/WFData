@@ -9,8 +9,8 @@ import javax.crypto.KeyAgreement;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.AuthUtil;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.codes.ResponseCode;
@@ -29,7 +29,7 @@ import wfDataService.service.util.ServiceSettingsUtil;
 public class RegisterHandler extends BaseHandler {
 
 	@Override
-	protected ResponseData getResponse(HttpExchange exchange, ServerClientData clientData, JsonObject inputObj) {
+	protected ResponseData getResponse(HttpExchange exchange, ServerClientData clientData, JsonObject inputObj, String requestVersion) {
 		String response = null;
 		int rc = ResponseCode.SUCCESS;
 		int httpCode = HttpURLConnection.HTTP_OK;
@@ -47,22 +47,21 @@ public class RegisterHandler extends BaseHandler {
 			}
 
 			if (clientData != null) {
-				boolean updatedData = false;
 				// If the client name is overridden on our side, don't update it
 				if (!clientData.isNameOverridden() && !clientData.getDisplayName().equals(serverName)) {
 					clientData.setDisplayName(serverName);
-					updatedData = true;
 				}
 				if (!clientData.getRegion().equals(region)) {
 					clientData.setRegion(region);
-					updatedData = true;
 				}
 
-				if (updatedData) {
-					ServerClientDao.updateClientData(clientData);
+				if (inputObj.has(JSONField.PROPERTIES)) {
+					clientData.setServerClientProperties(inputObj.getAsJsonObject(JSONField.PROPERTIES));
 				}
 
-				Log.info(LOG_ID + ".getResponse() : Existing client registered from " + exchange.getRemoteAddress().toString() + " -> name=" + serverName);
+				ServerClientDao.updateClientData(clientData);
+
+				Log.info(LOG_ID + ".getResponse() : Existing client registered from " + exchange.getRemoteAddress().toString() + " -> name=" + serverName, ", ver=", requestVersion);
 
 			} else {
 				int serverId = -1;
@@ -86,6 +85,9 @@ public class RegisterHandler extends BaseHandler {
 				if (aes != null) {
 					clientData = new ServerClientData(serverId, serverName);
 					clientData.setRegion(region);
+					if (inputObj.has(JSONField.PROPERTIES)) {
+						clientData.setServerClientProperties(inputObj.getAsJsonObject(JSONField.PROPERTIES));
+					}
 					ServerClientDao.updateClientData(clientData);
 					ServerClientDao.updateClientKey(serverId, aes);
 					ServerClientCache.singleton().addClientData(clientData);
@@ -94,7 +96,7 @@ public class RegisterHandler extends BaseHandler {
 					resp.addProperty(JSONField.SERVER_ID, serverId);
 					resp.addProperty(JSONField.AUTH, diffiePublic);
 					response = resp.toString();
-					Log.info(LOG_ID + ".getResponse() : Registered new client from " + exchange.getRemoteAddress().toString() + " -> id=" + serverId + ", name=" + serverName);
+					Log.info(LOG_ID + ".getResponse() : Registered new client from " + exchange.getRemoteAddress().toString() + " -> id=" + serverId + ", name=" + serverName, ", ver=", requestVersion);
 					if (ServiceSettingsUtil.autoAllowRegistration()) {
 						ServerClientCache.singleton().toggleValidation(serverId, true);
 					} else {

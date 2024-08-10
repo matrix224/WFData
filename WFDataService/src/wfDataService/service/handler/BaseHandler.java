@@ -14,10 +14,12 @@ import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import jdtools.logging.Log;
 import jdtools.util.HTTPUtil;
+import jdtools.util.IOUtil;
 import jdtools.util.MiscUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.AuthUtil;
+import wfDataModel.model.util.DBUtil;
 import wfDataModel.service.codes.HeaderField;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.codes.ResponseCode;
@@ -27,7 +29,8 @@ import wfDataService.service.data.ServerClientData;
 import wfDataService.service.db.ServerClientDao;
 
 /**
- * Base class for receiving and processing requests from clients.
+ * Base class for receiving and processing requests from clients. <br>
+ * This and all sub-classes should <b>NOT</b> have request-specific class variables, as they are shared between all requests.
  * @author MatNova
  *
  */
@@ -38,10 +41,12 @@ public abstract class BaseHandler implements HttpHandler {
 	@Override
 	public void handle(HttpExchange exchange) throws IOException {
 		ResponseData response = null;
+		
 		int serverID = getServerID(exchange);
 		byte[] aesSeed = getAESSeed(exchange);
+
 		ServerClientData clientData = serverID > -1 ? ServerClientCache.singleton().getClientData(serverID) : null;
-		
+
 		if (serverID > -1 && clientData == null) {
 			Log.warn(LOG_ID + ".handle() : Unknown server ID provided, will ignore -> " + serverID);
 			response = new ResponseData("Invalid", ResponseCode.ERROR, HttpURLConnection.HTTP_OK);
@@ -53,7 +58,7 @@ public abstract class BaseHandler implements HttpHandler {
 			response = new ResponseData("Denied", ResponseCode.ERROR, HttpURLConnection.HTTP_OK);
 		} else {
 			try (InputStream reader = exchange.getRequestBody()) {
-				Map<String, String> postParams = HTTPUtil.parsePostParams(new String(Base64.getDecoder().decode(reader.readAllBytes()), StandardCharsets.UTF_8));
+				Map<String, String> postParams = HTTPUtil.parsePostParams(new String(Base64.getDecoder().decode(IOUtil.readAllBytes(reader)), StandardCharsets.UTF_8));
 				String input = postParams.get(JSONField.DATA);
 				if (MiscUtil.isEmpty(input)) {
 					Log.warn(LOG_ID + ".getResponse() : Invalid request from " + exchange.getRemoteAddress().toString() + " -> " + input);
@@ -61,7 +66,12 @@ public abstract class BaseHandler implements HttpHandler {
 				} else {
 					// ServerID is only allowed to not be supplied if this is an initial registration request
 					JsonObject inputObj = JsonParser.parseString(serverID > 0 ? AuthUtil.decode(input, ServerClientDao.getSymKey(serverID), getAESSeed(exchange)) : input).getAsJsonObject();
-					response = getResponse(exchange, clientData, inputObj);
+					// If no version is specified, we assume it's DEFAULT_VER
+					String requestVersion = DBUtil.DEFAULT_VER;
+					if (inputObj.has(JSONField.VERSION)) {
+						requestVersion = inputObj.get(JSONField.VERSION).getAsString();
+					}
+					response = getResponse(exchange, clientData, inputObj, requestVersion);
 				}
 			} catch (Exception e) {
 				response = new ResponseData("An error occurred while processing", ResponseCode.ERROR, HttpURLConnection.HTTP_INTERNAL_ERROR);
@@ -92,8 +102,14 @@ public abstract class BaseHandler implements HttpHandler {
 	}
 
 	protected byte[] getAESSeed(HttpExchange exchange) {
-		return Base64.getDecoder().decode(exchange.getRequestHeaders().getFirst(HeaderField.SEED));
+		String seed = exchange.getRequestHeaders().getFirst(HeaderField.SEED);
+		byte[] seedData = null;
+		if (!MiscUtil.isEmpty(seed)) {
+			seedData=  Base64.getDecoder().decode(seed);
+		}
+
+		return seedData;
 	}
 
-	protected abstract ResponseData getResponse(HttpExchange exchange, ServerClientData clientData, JsonObject inputObj);
+	protected abstract ResponseData getResponse(HttpExchange exchange, ServerClientData clientData, JsonObject inputObj, String requestVersion);
 }

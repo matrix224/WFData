@@ -3,8 +3,8 @@ package wfDataManager.client.parser.http;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import jdtools.logging.Log;
 import wfDataManager.client.db.RetryDataDao;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.codes.ResponseCode;
 import wfDataModel.service.data.ResponseData;
@@ -19,7 +19,7 @@ public class AddDataResponseParser extends BaseResponseParser {
 
 	private String request;
 	private GameDataType dataType;
-	
+
 	public AddDataResponseParser(String request, GameDataType dataType) {
 		this.request = request;
 		this.dataType = dataType;
@@ -44,7 +44,7 @@ public class AddDataResponseParser extends BaseResponseParser {
 			} else {
 				Log.debug(LOG_ID + ".parseData() : Game data sent to service, unknown data type?");
 			}
-		} else if (ResponseCode.ERROR == responseData.getRC()) {
+		} else if (ResponseCode.ERROR == responseData.getRC() || ResponseCode.ALREADY_BEING_PROCESSED == responseData.getRC()) {
 			// Unexpected for it to be null here
 			if (dataType != null) {
 				// TODO: Better way to validate the response is actually JSON
@@ -56,6 +56,14 @@ public class AddDataResponseParser extends BaseResponseParser {
 				handleError(respObj);
 			} else {
 				Log.warn(LOG_ID + ".parseData() : Service had issue and cannot store failed data. Response=" + responseData.getResponse());
+			}
+		} else if (ResponseCode.ALREADY_PROCESSED == responseData.getRC()) { 
+			if (GameDataType.RETRY_GAME_DATA.equals(dataType)) {
+				JsonObject respObj = JsonParser.parseString(responseData.getResponse()).getAsJsonObject();
+				RetryDataDao.deleteRetryData(respObj.get(JSONField.DATA_ID).getAsInt());
+				Log.debug(LOG_ID + ".parseData() : Retried game data was already processed on service, marking done");
+			} else {
+				Log.debug(LOG_ID + ".parseData() : Game data request was already processed on service (?)");
 			}
 		} else {
 			Log.warn(LOG_ID + ".parseData() : Unhandled RC: rc=" + responseData.getRC() + ", response=" + responseData.getResponse());

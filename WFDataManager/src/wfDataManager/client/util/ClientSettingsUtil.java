@@ -1,8 +1,9 @@
 package wfDataManager.client.util;
 
+import jdtools.logging.Log;
 import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.data.ClientSettingsCfg;
-import wfDataModel.model.logging.Log;
+import wfDataModel.service.data.BanData;
 
 /**
  * Utility class for accessing and updating client settings
@@ -73,6 +74,10 @@ public class ClientSettingsUtil {
 		return singleton().getDisplayName();
 	}
 
+	public static String getHost() {
+		return singleton().getHost();
+	}
+	
 	public static String getRegion() {
 		return singleton().getRegion();
 	}
@@ -120,12 +125,19 @@ public class ClientSettingsUtil {
 	public static boolean enableBanSharing() {
 		return singleton().enableBanSharing();
 	}
+	
+	public static boolean enableBanLoadoutSharing() {
+		return singleton().enableBanLoadoutSharing();
+	}
 
 	public static boolean enforceLoadoutBans() {
 		return singleton().enforceLoadoutBans();
 	}
 	
-	public static int getBanTime(boolean isPrimary) {
+	public static int getBanTime(boolean isPrimary, boolean isKick) {
+		if (isKick) {
+			return BanData.KICK_DURATION;
+		}
 		return (isPrimary ? getPrimaryBanTime() : getSecondaryBanTime()) * 1000;
 	}
 
@@ -167,12 +179,11 @@ public class ClientSettingsUtil {
 	
 	/**
 	 * Returns if the service is going to be used at all. <br/>
-	 * Currently returns true if any of: {@link ClientSettingsUtil#enableDataSharing()}, {@link #enableBanSharing()}, or
-	 * {@link #enableAlerts()} are true
+	 * Currently returns true if any of: {@link #enableDataSharing()}, {@link #enableBanSharing()}, {@link #enableBanLoadoutSharing()} or {@link #enableAlerts()} are true
 	 * @return
 	 */
 	public static boolean serviceEnabled() {
-		return enableDataSharing() || enableBanSharing() || enableAlerts();
+		return enableDataSharing() || enableBanSharing() || enableBanLoadoutSharing() || enableAlerts();
 	}
 	
 	public static void setProcessMode(ProcessModeType processMode) {

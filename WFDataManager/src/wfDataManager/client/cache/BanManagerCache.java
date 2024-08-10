@@ -3,27 +3,28 @@ package wfDataManager.client.cache;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import jdtools.util.NumberUtil;
+import jdtools.util.SystemUtil;
 import wfDataManager.client.db.BanDao;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataManager.client.util.RequestUtil;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.NetworkUtil;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.data.BanData;
@@ -32,9 +33,9 @@ import wfDataModel.service.data.LoadoutData;
 import wfDataModel.service.data.LoadoutItemData;
 import wfDataModel.service.type.BanActionType;
 import wfDataModel.service.type.BanDirectionType;
+import wfDataModel.service.type.BanProtocolType;
 import wfDataModel.service.type.EloType;
 import wfDataModel.service.type.GameMode;
-import wfDataModel.service.type.BanProtocolType;
 
 /**
  * Cache to store and handle the management of user bans. <br>
@@ -42,24 +43,28 @@ import wfDataModel.service.type.BanProtocolType;
  * 
  * @author MatNova
  */
-public class BanManagerCache {
+public final class BanManagerCache {
 
 	private static final String LOG_ID = BanManagerCache.class.getSimpleName();
+	private static final double DEFAULT_OFFENSE_THRESHOLD = 10;
+	private static final int DEFAULT_STRIKE_THRESHOLD = 3;
 
 	private static BanManagerCache singleton;
-	private double offenseThreshold = 10; // The threshold at which point a combination of items triggers a ban or a strike
-	private int strikeThreshold = 3; // Number of strikes for an unknown player to receive before being banned and marked for instant bans in the future
-	private Map<Integer, LoadoutData> loadouts = new HashMap<Integer, LoadoutData>(); // loadout ID -> loadout
+	private double offenseThreshold = DEFAULT_OFFENSE_THRESHOLD; // The threshold at which point a combination of items triggers a ban or a strike
+	private int strikeThreshold = DEFAULT_STRIKE_THRESHOLD; // Number of strikes for an unknown player to receive before being banned and marked for instant bans in the future
+	private Map<Integer, LoadoutData> loadouts = Collections.synchronizedMap(new HashMap<Integer, LoadoutData>()); // loadout ID -> loadout
 	private Map<String, BanData> bannedTracker = new HashMap<String, BanData>(); // UID -> data. Tracks data pertaining to players and their bans (either currently banned, or has committed offenses before)
 
 	public static synchronized BanManagerCache singleton() {
 		if (singleton == null) {
 			singleton = new BanManagerCache();
+			singleton.prepareCache(false);
 		}
 		return singleton;
 	}
 
-	public void prepareCache() {
+	public boolean prepareCache(boolean isRefresh) {
+		boolean success = false;
 		File bannedItemsCfg = new File(ClientSettingsUtil.getBannedItemsConfig());
 		if (bannedItemsCfg.exists()) {
 			try (BufferedReader br = new BufferedReader(new FileReader(bannedItemsCfg))) {
@@ -71,11 +76,19 @@ public class BanManagerCache {
 				JsonObject cfgObject = JsonParser.parseString(cfgStr).getAsJsonObject();
 				if (cfgObject.has(JSONField.OFFENSE_THRESHOLD)) {
 					offenseThreshold = cfgObject.get(JSONField.OFFENSE_THRESHOLD).getAsDouble();
+				} else {
+					offenseThreshold = DEFAULT_OFFENSE_THRESHOLD;
 				}
 				if (cfgObject.has(JSONField.STRIKE_THRESHOLD)) {
 					strikeThreshold = cfgObject.get(JSONField.STRIKE_THRESHOLD).getAsInt();
+				} else {
+					strikeThreshold = DEFAULT_STRIKE_THRESHOLD;
 				}
 				if (cfgObject.has(JSONField.LOADOUTS)) {
+					if (isRefresh) {
+						loadouts.clear();
+					}
+
 					JsonArray loadoutArr = cfgObject.getAsJsonArray(JSONField.LOADOUTS);
 					loadoutArr.forEach(loadout -> {
 						JsonObject loadoutObj = loadout.getAsJsonObject();
@@ -106,19 +119,27 @@ public class BanManagerCache {
 
 					});
 				}
+				success = true;
 			} catch (Exception e) {
 				Log.error(LOG_ID + ".prepareCache() : Exception occurred -> ", e);
 			}
 
 			Log.info(LOG_ID + ".prepareCache() : Banned loadouts: " + loadouts.size() + ", offenseThreshold: " + offenseThreshold + ", strikeThreshold: " + strikeThreshold);
-			bannedTracker.putAll(BanDao.getBanData());
+			if (!isRefresh) {
+				bannedTracker.putAll(BanDao.getBanData());
+			}
 		} else {
 			Log.warn(LOG_ID + ".prepareCache() : Banned items config does not exist, no items will be marked as banned -> " + bannedItemsCfg.getAbsolutePath());
 		}
+		return success;
 	}
 
-	public Collection<BanData> getBanData() {
-		return bannedTracker.values();
+	public Collection<LoadoutData> getBannedLoadouts() {
+		return loadouts.values();
+	}
+
+	public List<BanData> getBanData() {
+		return new ArrayList<BanData>(bannedTracker.values());
 	}
 
 	public BanData getBanData(String uid) {
@@ -143,15 +164,21 @@ public class BanManagerCache {
 		}
 	}
 
+	public boolean createKickBan(String playerName, String uid, String reason) {
+		BanData data = getOrCreateBanData(playerName, uid);
+		if (data.isKick()) {
+			return false; // If we already have a kick for them, return false
+		}
+		manageBan(data, BanActionType.ADD, BanData.KICK_BAN_IP, MiscUtil.isEmpty(reason) ? "Kicked" : reason);
+		return true;
+	}
+	
 	public boolean createPermaBan(String playerName, String uid, String reason) {
 		BanData data = getOrCreateBanData(playerName, uid);
 		if (data.isPermanent()) {
 			return false; // If we already have a permaban for them, return false
 		}
-		BanSpec spec = data.addOrGetBanSpec(BanData.PERM_BAN_IP);
-		spec.setBanReason(MiscUtil.isEmpty(reason) ? "Permaban" : reason);
-		spec.setBanTime(System.currentTimeMillis());
-		BanDao.updateBan(data, BanData.PERM_BAN_IP, BanActionType.ADD);
+		manageBan(data, BanActionType.ADD, BanData.PERM_BAN_IP, MiscUtil.isEmpty(reason) ? "Permaban" : reason);
 		return true;
 	}
 
@@ -160,8 +187,11 @@ public class BanManagerCache {
 		if (data == null || !data.isPermanent()) {
 			return false;
 		}
-		data.removeBanSpec(BanData.PERM_BAN_IP);
-		BanDao.updateBan(data, BanData.PERM_BAN_IP, BanActionType.REMOVE);
+		// In case the user was in the server when the ban was added, we will remove all specs
+		// under this ban entry (the permanent spec, and any actual IP ones)
+		for (BanSpec spec : new ArrayList<BanSpec>(data.getBanSpecs())) {
+			manageBan(data, BanActionType.REMOVE, spec.getIP());
+		}
 		return true;
 	}
 
@@ -174,7 +204,7 @@ public class BanManagerCache {
 			BanData data = getBanData(uid);
 			if (data != null) {
 				for (BanSpec spec : data.getBanSpecs()) {
-					if (spec.getBanTime() != null && !spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary()))) {
+					if (spec.getBanTime() != null && !spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary(), spec.isKick()))) {
 						return true;
 					}
 				}
@@ -231,7 +261,7 @@ public class BanManagerCache {
 					spec.setBanReason(loadoutName);
 					spec.setLoadoutID(loadoutID);
 
-					manageBan(banData, BanActionType.ADD, player.getIPAndPort(), banData.getBanReason(player.getIPAndPort()), server.getServerPort());
+					manageBan(banData, BanActionType.ADD, player.getIPAndPort(), banData.getBanReason(player.getIPAndPort()));
 				}
 				break;
 			}
@@ -244,23 +274,24 @@ public class BanManagerCache {
 			reason = "Unknown";
 			Log.warn(LOG_ID + ".manageBan() : Reason not supplied for adding new ban, defaulting to 'Unknown' for player " + data.getPlayerName() + " (" + data.getUID() + ")");
 		}
-		manageBan(data, action, ipAndPort, reason, 0);
+		manageBan(data, action, ipAndPort, reason);
 	}
 
-	public synchronized void manageBan(BanData data, BanActionType action, String ipAndPort, String reason, int serverPort) {		
+	public synchronized void manageBan(BanData data, BanActionType action, String ipAndPort, String reason) {		
 		boolean successfullyRan = false;
-		String[] parts = ipAndPort.split(":", 2);
-		String ip = parts[0];
-		String port = parts[1]; // Note that if this isn't a proxy IP, it will always have port 0 since we don't care about it
-		boolean isProxy = Integer.valueOf(port) > 0;
-		boolean alreadyBanned = getBanData(data.getUID()) != null &&  getBanData(data.getUID()).getBanTime(ipAndPort) != null; // If we already have this UID and IP/port in our system
-		
+		boolean isPermaOrKick = BanData.PERM_BAN_IP.equals(ipAndPort) || BanData.KICK_BAN_IP.equals(ipAndPort);
+		String[] parts = isPermaOrKick ? null : ipAndPort.split(":", 2);
+		String ip = isPermaOrKick ? null : parts[0];
+		String port = isPermaOrKick ? null : parts[1]; // Note that if this isn't a proxy IP, it will always have port 0 since we don't care about it
+		boolean isProxy = port != null && Integer.valueOf(port) > 0;
+		boolean alreadyBanned = getBanData(data.getUID()) != null && getBanData(data.getUID()).getBanTime(ipAndPort) != null; // If we already have this UID and IP/port in our system
+
 		// Don't allow LAN IPs to be banned (e.g. in case someone shares a fake one to the service)
 		if (NetworkUtil.isPrivateIP(ip)) {
 			Log.warn(LOG_ID + ".manageBan() : Ignoring ban with local IP -> ip=" + ip + ", uid=" + data.getUID());
 			return;
 		}
-		
+
 		if (BanActionType.ADD.equals(action)) {
 			if (alreadyBanned) {
 				// If they're already banned, we assume they have a firewall entry already
@@ -272,24 +303,29 @@ public class BanManagerCache {
 				// Note we create 4 ban entries here, two for IN (tcp/udp) and two for OUT (tcp/udp) due to port being part of it and protocol has to be specified as TCP or UDP when using port
 				// For the servers, just banning UDP works and you can get away with just 2 bans. But there's no harm in blocking TCP either
 				if (MiscUtil.isEmpty(data.getReportedBy(ipAndPort))) {
-					successfullyRan = runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.IN, BanProtocolType.UDP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.UDP, data, ipAndPort));
+					successfullyRan = SystemUtil.runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.IN, BanProtocolType.UDP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.UDP, data, ipAndPort));
 				} else {
 					// If this is a proxy and was reported by someone else, we'll track the ban but not add any firewall rule
 					// There's no point in firewalling them in this case since the reported port is specific to the reporting user's instance
 					successfullyRan = true;
 				}
 			} else {
-				// Otherwise, for non-proxy, just ban their IP on all ports
-				successfullyRan = runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.ANY, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.ANY, data, ipAndPort));
+				// If it's a permanent or kick ban, just say we're good
+				if (isPermaOrKick) {
+					successfullyRan = true;
+				} else {
+					// Otherwise, for non-proxy, just ban their IP on all ports
+					successfullyRan = SystemUtil.runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.ANY, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.ANY, data, ipAndPort));
+				}
 			}
 		} else {
 			// If this is not a proxy, or this was not reported by someone else, we should have a ban entry
 			if (!data.isProxy(ipAndPort) || MiscUtil.isEmpty(data.getReportedBy(ipAndPort))) {
 				// If this is a proxy, need to remove 4 bans (two for IN (tcp/udp) and two for OUT (tcp/udp)) due to port being part of it
 				if (data.isProxy(ipAndPort)) {
-					successfullyRan = runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.IN, BanProtocolType.UDP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.UDP, data, ipAndPort));
+					successfullyRan = SystemUtil.runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.IN, BanProtocolType.UDP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.TCP, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.UDP, data, ipAndPort));
 				} else {
-					successfullyRan = runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.ANY, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.ANY, data, ipAndPort));
+					successfullyRan = SystemUtil.runCommands(createBanCmd(action, BanDirectionType.IN, BanProtocolType.ANY, data, ipAndPort), createBanCmd(action, BanDirectionType.OUT, BanProtocolType.ANY, data, ipAndPort));
 				}
 			} else {
 				// If this was a proxy reported by someone else, just mark successful; we did not make any firewall entry for them
@@ -308,22 +344,24 @@ public class BanManagerCache {
 					BanSpec specCopy = banCopy.addOrGetBanSpec(ipAndPort);
 					specCopy.setBanTime(spec.getBanTime());
 					specCopy.setReportedBy(spec.getReportedBy());
+					specCopy.setBanReason(reason);
 					if (!alreadyBanned) {
 						specCopy.setLoadoutID(spec.getLoadoutID());
 						specCopy.setPrimary(spec.isPrimary());
 						specCopy.setIsProxy(spec.isProxy());
 					}
+					data = banCopy;
 				} else {
 					spec.setBanTime(System.currentTimeMillis());
 					if (!alreadyBanned) {
 						spec.setBanReason(reason);
 						spec.setIsProxy(isProxy);
 					}
-					// Note that if this player is permanently banned, we will not share data with the service
-					// It is up to individual server owners to decide whether or not they want to permaban someone
+					// Note that if this player is permanently banned or kicked, we will not share data with the service
+					// It is up to individual server owners to decide whether or not they want to permaban/kick someone
 					// We only share primary bans with the service as any secondary ones will just be handled on each client's end
 					// once the primary ban is in place
-					if (!alreadyBanned && ClientSettingsUtil.enableBanSharing() && !data.isPermanent() && data.isPrimary(ipAndPort) && MiscUtil.isEmpty(data.getReportedBy(ipAndPort))) {
+					if (!alreadyBanned && ClientSettingsUtil.enableBanSharing() && !data.isPermanent() && !data.isKick() && data.isPrimary(ipAndPort) && MiscUtil.isEmpty(data.getReportedBy(ipAndPort))) {
 						BanData dataCopy = new BanData(data.getPlayerName(), data.getUID());
 						dataCopy.addBanSpec(data.getBanSpec(ipAndPort));
 						JsonObject dataObj = new JsonObject();
@@ -331,7 +369,7 @@ public class BanManagerCache {
 						RequestUtil.sendAddBanRequest(dataObj);
 					}
 				}
-				
+
 				if (alreadyBanned) {
 					Log.info(LOG_ID + ".manageBan() : Updating existing ban time: uid=" + data.getUID() + ", ip=" + ipAndPort + ", reason=" + data.getBanReason(ipAndPort) + ", primary=" + data.isPrimary(ipAndPort) + ", proxy=" + data.isProxy(ipAndPort) + (!MiscUtil.isEmpty(data.getReportedBy(ipAndPort)) ? ", reported by " + data.getReportedBy(ipAndPort) : ""));
 				} else {
@@ -341,12 +379,43 @@ public class BanManagerCache {
 				Log.info(LOG_ID + ".manageBan() : Removing ban: uid=" + data.getUID() + ", ip=" + ipAndPort + ", reason=" + data.getBanReason(ipAndPort) + ", primary=" + data.isPrimary(ipAndPort) + ", proxy=" + data.isProxy(ipAndPort));
 				data.removeBanSpec(ipAndPort);
 			}
-			
+
 			// Update this ban in our DB
 			BanDao.updateBan(data, ipAndPort, action);
-			
+
 		} else {
 			Log.warn(LOG_ID + ".manageBan() : Firewall command(s) did not run properly, nothing will be updated about ban -> uid=" + data.getUID() + ", ip=" + ip);
+		}
+	}
+
+	public synchronized void updateBanData(String oldUID, String newUID) {
+		if (bannedTracker.containsKey(oldUID)) {
+			BanData data = bannedTracker.get(oldUID);
+			List<BanSpec> bannedSpecs = null;
+			if (isCurrentlyBanned(oldUID)) {
+				Log.warn(LOG_ID + ".updateBanData() : Old UID ", oldUID, " is currently banned, will remove and reinsert for new UID ", newUID);
+				for (BanSpec spec : data.getBanSpecs()) {
+					if (!spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary(), spec.isKick()))) {
+						if (bannedSpecs == null) {
+							bannedSpecs = new ArrayList<BanSpec>();
+							bannedSpecs.add(spec);
+						}
+						manageBan(data, BanActionType.REMOVE, spec.getIP());
+					}
+				}
+			}
+
+			data.setUID(newUID);
+			bannedTracker.put(newUID, data);
+			bannedTracker.remove(oldUID);
+
+			BanDao.updateBanDataReferences(oldUID, newUID);
+
+			if (!MiscUtil.isEmpty(bannedSpecs)) {
+				for (BanSpec spec : bannedSpecs) {
+					manageBan(data, BanActionType.ADD, spec.getIP());
+				}
+			}
 		}
 	}
 
@@ -372,62 +441,7 @@ public class BanManagerCache {
 		return cmd;
 	}
 
-	private boolean runCommands(String[]... cmds) {
-		boolean allSuccess = false;
-		int i = 0;
-		do {
-			allSuccess = runCommand(cmds[i++]);
-		} while (allSuccess && i < cmds.length);
-
-		return allSuccess;
-	}
-
 	public boolean isBannedLoadout(int loadoutID) {
 		return loadouts.containsKey(loadoutID);
-	}
-
-	private boolean runCommand(String... programAndArgs) {
-		boolean isSuccess = true;
-		ProcessBuilder builder = new ProcessBuilder(programAndArgs);
-		Process p = null;
-
-		try {
-			p = builder.start();
-			if (p.waitFor(10, TimeUnit.SECONDS)) {
-				try (BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
-					if (stdError != null && stdError.ready()) {
-						Log.warn(LOG_ID + ".runCommand() : StdError present -> " + stdError.lines().collect(Collectors.joining()));
-						isSuccess = false;
-					}
-				} catch (Throwable t) {
-					Log.error(LOG_ID + ".runCommand() : Exception reading error stream -> " + t.getLocalizedMessage());
-					isSuccess = false;
-				}
-
-				if (isSuccess) {
-					try (BufferedReader stdOut = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-						if (stdOut != null && stdOut.ready()) {
-							String stdOutStr = stdOut.lines().collect(Collectors.joining());
-							if (stdOutStr.contains("elevation") || stdOutStr.contains("not valid")) {
-								Log.warn(LOG_ID + ".runCommand() : Command most likely failed, output= -> " + stdOutStr);
-								isSuccess = false;
-							}
-						}
-					} catch (Throwable t) {
-						Log.error(LOG_ID + ".runCommand() : Exception reading out stream -> " + t.getLocalizedMessage());
-						isSuccess = false;
-					}
-				}
-
-			} else {
-				isSuccess = false;
-				p.destroy();
-				Log.warn(LOG_ID + ".runCommand() : Command timed out");
-			}
-		} catch (Throwable t) {
-			isSuccess = false;
-			Log.error(LOG_ID + ".runCommand() : Exception running command -> " + t.getLocalizedMessage());
-		}
-		return isSuccess;
 	}
 }

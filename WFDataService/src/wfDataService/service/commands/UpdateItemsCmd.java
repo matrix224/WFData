@@ -1,12 +1,14 @@
 package wfDataService.service.commands;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.SortedMap;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataModel.model.commands.BaseCmd;
-import wfDataModel.model.logging.Log;
+import wfDataModel.model.data.WeaponData;
+import wfDataModel.service.type.WeaponType;
 import wfDataService.service.cache.WarframeItemCache;
 import wfDataService.service.db.GameDataDao;
 
@@ -37,31 +39,32 @@ public class UpdateItemsCmd extends BaseCmd {
 			if (args != null && args.length > 0) {
 				WarframeItemCache.singleton().updateCacheIfNeeded(true);
 			}
-			
-			List<String> unmappedItems = GameDataDao.findUnmappedItems();
+
+			SortedMap<String, WeaponType> unmappedItems = GameDataDao.findUnmappedItems();
 
 			if (MiscUtil.isEmpty(unmappedItems)) {
 				Log.info("No unmapped items found");
 			} else {
 				List<String> mappedItems = new ArrayList<String>();
-				Collections.sort(unmappedItems);
 
-				for (String item : unmappedItems) {
-					String itemName = WarframeItemCache.singleton().getItemName(item);
-					if (!MiscUtil.isEmpty(itemName) && !itemName.equals(item)) {
-						if (GameDataDao.updateItemName(item, itemName)) {
-							Log.info("Mapped " + item + " to " + itemName);
+				for (String item : unmappedItems.keySet()) {
+					WeaponData wepData = WarframeItemCache.singleton().getItemInfo(item);
+					if (wepData != null && !MiscUtil.isEmpty(wepData.getRealName()) && wepData.getType() !=null && (!wepData.getRealName().equals(item) || !wepData.getType().equals(unmappedItems.get(item)))) {
+						String itemName = wepData.getRealName();
+						WeaponType type = wepData.getType();
+						if (GameDataDao.updateItem(item, itemName, type)) {
+							Log.info("Mapped " + item + " to " + itemName + " and type " + type);
 							mappedItems.add(item);
 						} else {
-							Log.info("Could not update " + item + " to " + itemName);
+							Log.info("Could not update " + item + " to " + itemName + " and type " + type);
 						}
 					}
 				}
 
 				Log.info("Mapped " + mappedItems.size() + " / " + unmappedItems.size() + " items");
-				unmappedItems.removeAll(mappedItems);
+				unmappedItems.keySet().removeAll(mappedItems);
 				if (!MiscUtil.isEmpty(unmappedItems)) {
-					Log.info("Remaining unmapped items: " + unmappedItems);
+					Log.info("Remaining unmapped items: " + unmappedItems.keySet());
 				}
 			}
 		}

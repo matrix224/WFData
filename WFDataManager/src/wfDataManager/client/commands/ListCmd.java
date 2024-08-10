@@ -1,12 +1,12 @@
 package wfDataManager.client.commands;
 
+import jdtools.logging.Log;
 import wfDataManager.client.cache.BanManagerCache;
 import wfDataManager.client.cache.ServerDataCache;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.commands.BaseCmd;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.service.data.BanData;
 import wfDataModel.service.data.BanSpec;
 import wfDataModel.service.type.EloType;
@@ -45,7 +45,7 @@ public class ListCmd extends BaseCmd {
 						if (spec.isPermanent()) {
 							resp.append("expires never");
 						} else {
-							resp.append("expires ").append(Math.abs(System.currentTimeMillis() - spec.getExpirationTime(ClientSettingsUtil.getBanTime(spec.isPrimary()))) / 1000).append("s");
+							resp.append("expires ").append(Math.abs(System.currentTimeMillis() - spec.getExpirationTime(ClientSettingsUtil.getBanTime(spec.isPrimary(), spec.isKick()))) / 1000).append("s");
 						}
 						resp.append("\n");
 					}

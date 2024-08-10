@@ -1,11 +1,12 @@
 package wfDataManager.client.task;
 
+import jdtools.logging.Log;
 import wfDataManager.client.processor.logging.BaseLogProcessor;
 import wfDataManager.client.processor.logging.HistoricalLogProcessor;
 import wfDataManager.client.processor.logging.NormalLogProcessor;
+import wfDataManager.client.processor.logging.TestLogProcessor;
 import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.ClientSettingsUtil;
-import wfDataModel.model.logging.Log;
 
 /**
  * Task for periodically processing the log files
@@ -14,7 +15,8 @@ import wfDataModel.model.logging.Log;
  */
 public class LogProcessorTask implements Runnable {
 
-	private static BaseLogProcessor processor = ProcessModeType.NORMAL.equals(ClientSettingsUtil.getProcessMode()) ? new NormalLogProcessor() : new HistoricalLogProcessor();
+	private static BaseLogProcessor processor = ProcessModeType.NORMAL.equals(ClientSettingsUtil.getProcessMode()) ? new NormalLogProcessor()
+			: ProcessModeType.TEST.equals(ClientSettingsUtil.getProcessMode()) ? new TestLogProcessor() : new HistoricalLogProcessor();
 
 	@Override
 	public void run() {

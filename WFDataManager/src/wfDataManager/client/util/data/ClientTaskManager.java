@@ -1,12 +1,12 @@
 package wfDataManager.client.util.data;
 
+import jdtools.logging.Log;
 import wfDataManager.client.task.BanFetcherTask;
 import wfDataManager.client.task.BanProcessorTask;
-import wfDataManager.client.task.RetryDataTask;
 import wfDataManager.client.task.LogProcessorTask;
+import wfDataManager.client.task.RetryDataTask;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataManager.client.util.ClientTaskUtil;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.data.TaskManager;
 
 /**

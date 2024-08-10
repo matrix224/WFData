@@ -1,6 +1,6 @@
 package wfDataService.service.util;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 import wfDataService.service.util.data.ServiceSettingsCfg;
 
 /**
@@ -55,4 +55,15 @@ public class ServiceSettingsUtil {
 		return singleton().getServerStatusUpdateInterval();
 	}
 
+	public static int getServerStatusExpiration() {
+		return singleton().getServerStatusExpiration();
+	}
+	
+	public static int getServerOutdatedTime() {
+		return singleton().getServerOutdatedTime();
+	}
+	
+	public static String getUserDir() {
+		return singleton().getUserDir();
+	}
 }

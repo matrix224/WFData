@@ -3,11 +3,11 @@ package wfDataManager.client.commands;
 import java.util.List;
 
 import jdtools.collection.Pair;
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
 import wfDataManager.client.db.GameDataDao;
 import wfDataModel.model.commands.BaseCmd;
 import wfDataModel.model.data.PlayerData;
-import wfDataModel.model.logging.Log;
 
 /**
  * Command for searching for a weapon or player by name

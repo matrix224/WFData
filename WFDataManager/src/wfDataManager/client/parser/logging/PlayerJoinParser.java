@@ -6,10 +6,12 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
+import jdtools.util.MiscUtil;
+import jdtools.util.StringUtil;
 import wfDataManager.client.type.ParseResultType;
 import wfDataModel.model.data.PlayerData;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 import wfDataModel.model.util.PlayerUtil;
 import wfDataModel.service.type.PlatformType;
 
@@ -23,7 +25,7 @@ public class PlayerJoinParser extends BaseLogParser {
 
 	private Matcher ADD_SQUAD_MEMBER_PATTERN;
 	private Matcher PLAYER_SPAWN_PATTERN; // Technically happens whenever a player (re)spawns
-
+	
 	@Override
 	protected List<Matcher> initMatchers() {
 		ADD_SQUAD_MEMBER_PATTERN = Pattern.compile(".*AddSquadMember: (.*), mm=(.+), squadCount=.*").matcher("");
@@ -32,33 +34,39 @@ public class PlayerJoinParser extends BaseLogParser {
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) {
 		if (ADD_SQUAD_MEMBER_PATTERN.matches()) {
 			String playerName = PlayerUtil.cleanPlayerName(ADD_SQUAD_MEMBER_PATTERN.group(1));
-			PlatformType platform = PlayerUtil.getPlatform(ADD_SQUAD_MEMBER_PATTERN.group(1));
-			String uid = ADD_SQUAD_MEMBER_PATTERN.group(2);
-			// For PSN platforms, we encode their UID in base64
-			// This is because some of them have wild values with various characters and spaces that will cause issues
-			if (PlatformType.PSN.equals(platform)) {
-				uid = Base64.getEncoder().encodeToString(uid.replaceAll(" ", "").getBytes());
-			}
-			PlayerData p = serverData.getPlayer(uid);
-			if (p == null) {
-				p = new PlayerData();
-				p.setUID(uid);
-				p.setLogID(serverData.getId());
-				p.setEloRating(serverData.getEloRating());
-				p.setGameMode(serverData.getGameModeId());
-				p.setPlatform(platform);
-				p.setLastLogTime(lastLogTime);
-				serverData.addPlayer(p);
+			if (MiscUtil.isEmpty(playerName)) {
+				Log.warn(LOG_ID + ".parse() : Player name was parsed as empty, will ignore!");
 			} else {
-				p.setLeftServer(false, lastLogTime);
+				int platform = PlayerUtil.getPlatform(ADD_SQUAD_MEMBER_PATTERN.group(1));
+				String uid = ADD_SQUAD_MEMBER_PATTERN.group(2);
+				// If any platforms provide a non-alphanumeric UID, we encode it as Base64
+				// Some of them have wild values with various characters and spaces that will cause issues otherwise
+				// Currently only expected for PSN platforms, but will handle any just in case
+				if (PlatformType.PSN.getCode() == platform || StringUtil.hasNonAlphaNumericCharacters(uid)) {
+					uid = Base64.getEncoder().encodeToString(uid.replaceAll(" ", "").getBytes());
+				}
+				PlayerData p = serverData.getPlayer(uid);
+				if (p == null) {
+					p = new PlayerData();
+					p.setUID(uid);
+					p.setLogID(serverData.getId());
+					p.setEloRating(serverData.getEloRating());
+					p.setGameMode(serverData.getGameModeId());
+					p.setPlatform(platform);
+					p.setLastLogTime(lastLogTime);
+					serverData.addPlayer(p);
+				} else {
+					p.setLeftServer(false, lastLogTime);
+				}
+				p.setPlayerName(playerName);
 			}
-			p.setPlayerName(playerName);
 		} else {
 			String name = PlayerUtil.cleanPlayerName(PLAYER_SPAWN_PATTERN.group(1));
-			PlayerData player = serverData.getPlayerByName(name);
+			int platform = PlayerUtil.getPlatform(PLAYER_SPAWN_PATTERN.group(1));
+			PlayerData player = serverData.getPlayerByNameAndPlatform(name, platform);
 			if (player != null) {
 				player.setLastLogTime(lastLogTime);
 			} else {

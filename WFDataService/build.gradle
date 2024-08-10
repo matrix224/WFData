@@ -7,6 +7,17 @@ sourceSets.main.java.srcDirs = ['src']
 mainClassName = 'wfDataService.service.main.WFDataService'
 version = loadVersion().getVersion()
 
+def javaVersion = JavaVersion.VERSION_1_8;
+sourceCompatibility = javaVersion;
+targetCompatibility = javaVersion; // defaults to sourceCompatibility
+
+// Forces this to be compliant with Java 8 when compiling if compiling using a newer Java version
+tasks.withType(JavaCompile) {
+    options.release = 8
+}
+
+// Note you may need to add 'com/sun/net/httpserver/**' as an 'Accessible' access rule in the JRE build properties if using JDK8
+
 dependencies {
       implementation 'mysql:mysql-connector-java:8.0.31'
       implementation 'com.zaxxer:HikariCP:4.0.3'
@@ -18,8 +29,11 @@ configurations {
 }
 
 repositories {
+  mavenLocal()
   mavenCentral() // for transitive dependencies
 }
+
+
 
 jar {
     manifest {
@@ -30,7 +44,6 @@ jar {
         )
     }
 }
-
 
 
 // HOW TO BUILD:

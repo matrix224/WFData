@@ -1,6 +1,6 @@
 package wfDataService.service.util.data;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 import wfDataModel.model.util.data.TaskManager;
 import wfDataService.service.task.ServerStatusTask;
 import wfDataService.service.util.ServiceSettingsUtil;

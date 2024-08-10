@@ -1,8 +1,8 @@
 package wfDataService.service.commands;
 
+import jdtools.logging.Log;
 import jdtools.util.NumberUtil;
 import wfDataModel.model.commands.BaseCmd;
-import wfDataModel.model.logging.Log;
 import wfDataService.service.cache.ServerClientCache;
 
 /**

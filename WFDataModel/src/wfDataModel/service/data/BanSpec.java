@@ -93,6 +93,10 @@ public class BanSpec {
 	public boolean isPermanent() {
 		return ip != null && BanData.PERM_BAN_IP.equalsIgnoreCase(ip);
 	}
+	
+	public boolean isKick() {
+		return ip != null && BanData.KICK_BAN_IP.equalsIgnoreCase(ip);
+	}
 
 	public void setReportedBy(String reportedBy) {
 		this.reportedBy = reportedBy;

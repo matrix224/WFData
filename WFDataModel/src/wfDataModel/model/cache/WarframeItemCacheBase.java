@@ -3,9 +3,9 @@ package wfDataModel.model.cache;
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,11 +17,14 @@ import com.google.gson.JsonParser;
 import jdtools.http.HTTPRequest;
 import jdtools.http.HTTPRequestListener;
 import jdtools.http.HTTPResponseData;
+import jdtools.logging.Log;
+import jdtools.util.IOUtil;
 import jdtools.util.MiscUtil;
 import lzma.sdk.lzma.Decoder;
 import lzma.streams.LzmaInputStream;
-import wfDataModel.model.logging.Log;
+import wfDataModel.model.data.WeaponData;
 import wfDataModel.service.codes.JSONField;
+import wfDataModel.service.type.WeaponType;
 
 /**
  * Base implementation for WF item caching classes
@@ -36,8 +39,8 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 	protected static final String TAG_WEAPONS = "Weapons";
 	protected static final String TAG_WARFRAMES = "Warframes";
 
-	private Map<String, String> customItems = new HashMap<String, String>(2); // Custom item key -> custom item name. Will be merged into warframeItems, but stored separately to survive through cache refreshes
-	private Map<String, String> warframeItems = new HashMap<String, String>(); // Item unique name, actual item name
+	private Map<String, WeaponData> customItems = new HashMap<String, WeaponData>(2); // Custom item key -> custom item definitions. Will be merged into warframeItems, but stored separately to survive through cache refreshes
+	private Map<String, WeaponData> warframeItems = new HashMap<String, WeaponData>(); // Item internal name, info about weapon
 	private Map<String, String> manifests = new HashMap<String, String>(); // key = tag (e.g. weapons), value = manifest file name
 	protected boolean hasInit = false;
 	protected long cacheID = -1;
@@ -53,32 +56,35 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 		if (!hasInit) {
 			File customItemConfig = getCustomItemsFile();
 			if (customItemConfig != null && customItemConfig.exists()) {
-				try (BufferedInputStream stream = new BufferedInputStream(new FileInputStream(customItemConfig))) {
-					String cfgData = new String(stream.readAllBytes());
+				try {
+					String cfgData = new String(Files.readAllBytes(customItemConfig.toPath()));
 					JsonObject cfgObj = JsonParser.parseString(cfgData).getAsJsonObject();
 					for (String key : cfgObj.keySet()) {
-						String itemName = cfgObj.get(key).getAsString();
-						addCustomItem(key, itemName);
+						JsonObject wepCfg = cfgObj.getAsJsonObject(key);
+						String itemName = wepCfg.get(JSONField.ITEM_NAME).getAsString();
+						WeaponType type = WeaponType.valueOf(wepCfg.get(JSONField.TYPE).getAsString());
+						addCustomItem(key, itemName, type);
 					}
 				} catch (Exception e) {
 					Log.error(LOG_ID + ".init() : Error parsing file for custom item config -> ", e);
 				}
 			}
 		}
-		
+
 		hasInit = true;
-		
+
 		// If we already have an item for this key in our warframeItems cache, don't override it
 		for (String itemKey : getCustomItems().keySet()) {
 			if (!hasItemName(itemKey)) {
-				addWarframeItem(itemKey, getCustomItem(itemKey));
+				WeaponData custData =  getCustomItem(itemKey);
+				addWarframeItem(itemKey, custData.getRealName(), custData.getType());
 			}
 		}
-		
+
 		Log.info(LOG_ID + ".init() : Cache built in " + ((System.currentTimeMillis() - startMs)/1000.0) + " seconds");
 
 	}
-	
+
 	protected void buildData(String type, boolean isRefresh) {
 		File cacheFile = getCacheFile(type);
 		if (isRefresh || (cacheFile == null || !cacheFile.exists())) {
@@ -97,8 +103,8 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 				}
 			}
 		} else {
-			try (BufferedInputStream stream = new BufferedInputStream(new FileInputStream(cacheFile))) {
-				String cacheData = new String(stream.readAllBytes());
+			try {
+				String cacheData = new String(Files.readAllBytes(cacheFile.toPath()));
 				JsonObject cacheObj = JsonParser.parseString(cacheData).getAsJsonObject();
 				if (cacheObj.has(JSONField.DATA_ID) && cacheID == -1) {
 					cacheID = cacheObj.get(JSONField.DATA_ID).getAsLong();
@@ -109,8 +115,16 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 			}
 		}
 	}
-	
+
 	public String getItemName(String itemKey) {
+		if (!hasInit) {
+			init(false);
+		}
+		WeaponData data = warframeItems.get(itemKey);
+		return data == null ? null : data.getRealName();
+	}
+	
+	public WeaponData getItemInfo(String itemKey) {
 		if (!hasInit) {
 			init(false);
 		}
@@ -121,25 +135,31 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 		if (!hasInit) {
 			init(false);
 		}
-		return !MiscUtil.isEmpty(warframeItems.get(itemKey));
+		return warframeItems.get(itemKey) != null && !MiscUtil.isEmpty(warframeItems.get(itemKey).getRealName());
 	}
-	
-	protected void addWarframeItem(String itemKey, String itemName) {
-		warframeItems.put(itemKey, itemName);
+
+	protected void addWarframeItem(String itemKey, String itemName, WeaponType type) {
+		WeaponData wepData = new WeaponData(itemKey);
+		wepData.setRealName(itemName);
+		wepData.setType(type);
+		warframeItems.put(itemKey, wepData);
 	}
-	
-	protected void addCustomItem(String itemKey, String itemName) {
-		customItems.put(itemKey, itemName);
+
+	protected void addCustomItem(String itemKey, String itemName, WeaponType type) {
+		WeaponData wepData = new WeaponData(itemKey);
+		wepData.setRealName(itemName);
+		wepData.setType(type);
+		customItems.put(itemKey, wepData);
 	}
-	
-	protected Map<String, String> getCustomItems() {
+
+	protected Map<String, WeaponData> getCustomItems() {
 		return customItems;
 	}
-	
-	protected String getCustomItem(String itemKey) {
+
+	protected WeaponData getCustomItem(String itemKey) {
 		return customItems.get(itemKey);
 	}
-		
+
 	private void parseItems(JsonObject baseObj, String type) {
 		JsonArray dataArr = TAG_WEAPONS.equals(type) ? baseObj.getAsJsonArray("ExportWeapons") : baseObj.getAsJsonArray("ExportWarframes");
 
@@ -147,13 +167,17 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 			JsonObject item = itemElement.getAsJsonObject();
 			String itemKey = item.get("uniqueName").getAsString();
 			String itemName = item.get("name").getAsString();
-			warframeItems.put(itemKey.substring(itemKey.lastIndexOf("/") +1 ), itemName);
+			WeaponType itemType = WeaponType.codeToType(item.get("productCategory").getAsString());
+			WeaponData wepData = new WeaponData(itemKey.substring(itemKey.lastIndexOf("/") +1 ));
+			wepData.setRealName(itemName);
+			wepData.setType(itemType);
+			warframeItems.put(wepData.getInternalName(), wepData);
 		}
 	}
 
 	private void fetchManifests() {
 		try (LzmaInputStream stream = new LzmaInputStream(new BufferedInputStream(new URL(INDEX_URL).openStream()),  new Decoder())) {
-			byte[] data = stream.readAllBytes();
+			byte[] data = IOUtil.readAllBytes(stream);
 			String[] mfsts = new String(data).split("\n");
 			for (String manifest : mfsts) {
 				if (manifest.contains("ExportWarframes")) {
@@ -176,7 +200,7 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 			try {
 				JsonObject respObj = JsonParser.parseString(response).getAsJsonObject();
 				parseItems(respObj, (String)tag);
-				File cacheFile = getCacheFile((String)tag); // new File(TAG_WEAPONS.equals(tag) ? getWeaponsCache() : getWarframesCache());
+				File cacheFile = getCacheFile((String)tag);
 				if (cacheFile != null) {
 					respObj.addProperty(JSONField.DATA_ID, cacheID);
 					try (BufferedWriter writer = new BufferedWriter(new FileWriter(cacheFile))) {

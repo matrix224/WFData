@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
-import wfDataModel.model.logging.Log;
+import jdtools.logging.Log;
 
 /**
  * Manager class for retrieving DB connections and disposing of DB-related objects
@@ -26,9 +26,15 @@ public class ResourceManager {
 			Log.error(ResourceManager.class.getSimpleName() + "() : Exception -> ", e);
 		}
 	}
-
+	
 	public static Connection getDBConnection() throws SQLException {
-		return dataSource.getConnection();
+		return getDBConnection(true);
+	}
+	
+	public static Connection getDBConnection(boolean autoCommit) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		conn.setAutoCommit(autoCommit);
+		return conn;
 	}
 
 	public static void releaseResources(Connection conn) {

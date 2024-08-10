@@ -3,6 +3,11 @@ package wfDataManager.client.commands;
 import wfDataManager.client.main.WFDataManager;
 import wfDataModel.model.commands.BaseCmd;
 
+/**
+ * Command for exiting the program
+ * @author MatNova
+ *
+ */
 public class ExitCmd extends BaseCmd {
 
 	public ExitCmd() {

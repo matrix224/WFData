@@ -7,11 +7,13 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
+import wfDataManager.client.db.ServerDao;
 import wfDataManager.client.type.ParseResultType;
+import wfDataManager.client.type.ProcessModeType;
 import wfDataManager.client.util.ClientSettingsUtil;
 import wfDataModel.model.data.ServerData;
-import wfDataModel.model.logging.Log;
 
 /**
  * Parser for checking the current starting log time <br>
@@ -28,18 +30,26 @@ public class CurrentTimeParser extends BaseLogParser {
 
 	@Override
 	protected List<Matcher> initMatchers() {
-		CURRENT_TIME_PATTERN = Pattern.compile(".*Current time: (.*) \\[.*").matcher("");
+		CURRENT_TIME_PATTERN = Pattern.compile(".*Current time: (.*) \\[UTC: (.*)\\]$").matcher("");
 		return Arrays.asList(CURRENT_TIME_PATTERN);
 	}
 
 	@Override
-	public ParseResultType parse(ServerData serverData, long offset, int lastLogTime) throws ParseException {
+	public ParseResultType parse(ServerData serverData, long offset, long lastLogTime) throws ParseException {
 		String curTime = CURRENT_TIME_PATTERN.group(1);
-
+		String utcTime =  CURRENT_TIME_PATTERN.group(2);
+		
 		if (!curTime.equals(serverData.getTimeStats().getStartTime())) {
 			Log.info(LOG_ID + ".parse() : Current timestamp (" + serverData.getTimeStats().getStartTime() + ") for logId " + serverData.getId() + " doesn't equal parsed one (" + curTime + "), will continue reading from beginning");
+			
+			// If we rolled over to a new log, mark the current one as already processed now before updating it
+			// For Test mode, we do not mark this
+			if (!ProcessModeType.TEST.equals(ClientSettingsUtil.getProcessMode()) && !MiscUtil.isEmpty(serverData.getTimeStats().getStartTime())) {
+				ServerDao.addProcessedLog(serverData);
+			}
+			
 			serverData.startNewParse(true);
-			serverData.getTimeStats().setStartTime(curTime);
+			serverData.getTimeStats().setStartTime(curTime, utcTime);
 			if (ClientSettingsUtil.cleanServerProfiles() && !MiscUtil.isEmpty(serverData.getCurrentProfileDir())) {
 				File profileDir = new File(serverData.getCurrentProfileDir());
 				if (profileDir.exists() && profileDir.isDirectory()) {

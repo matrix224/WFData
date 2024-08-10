@@ -31,16 +31,18 @@ This program **does not** touch the server executables or any other of DE's data
 ### Manager Requirements
 ```
  * Java 1.8+
+ * dec-0.1.2
+ * gson-2.9.0
+ * HikariCP-4.0.3
  * JDTools (custom jar)
+ * log4j-api-2.19.0
+ * log4j-core-2.19.0
+ * lzma-java-1.3
+ * slf4j-api-1.7.36
+ * slf4j-simple-1.7.30
+ * sqlite-jdbc-3.44.1.0
+ * WFDataManager
  * WFDataModel
- * gson 2.9.0
- * log4j-api 2.19.0
- * log4j-core 2.19.0
- * lzma-java 1.3
- * slf4j-api 1.7.30
- * slf4j-simple 1.7.30
- * sqlite-jdbc 3.8.7
- * HikariCP 4.0.3
 ```
 In addition, it should be noted that if you plan to use the banning features of the parsser (i.e. item banning, perm banning, etc), then the manager must be run with administrator privileges. This is due to the fact that it is inserting/removing entries from the firewall when managing bans, which will require admin to do properly.
 
@@ -117,6 +119,10 @@ This may also not be needed anymore after Maciej addressed the issue, but there 
 This is the friendly name that the WFDataService will recognize you as. This may be displayed to other people (e.g. on a website), so make sure it's sensible and friendly! The WFDataService has the ability to override your chosen name if needed.
 If you are using the data service at all, this is required to be set.
 
+&#128292;`` host (String)``
+Denotes who is hosting this server to be displayed on the website under information about this server (if data sharing is enabled)
+If not set, will just use the displayName.
+
 &#128292;``region (String)``
 This is the region that your server is being run from. This will be used for data aggregation in the WFDataService if you have enabled sending data to them in any way.
 Valid values are: ASIA, EUROPE, NORTH_AMERICA, OCEANIA, RUSSIA, SOUTH_AMERICA. If not set, will be considered UNKNOWN.
@@ -179,6 +185,9 @@ The methodology of how item bans work is explained in detail in the ``bannedItem
 &#9989;``enableBanSharing (Boolean)``
 If true and ``enableBanning`` is true, then this will share any bans with the WFDataService to allow other servers to use this ban as well (e.g. you ban someone, server B will ban them as well for their own specified amount of time). Additionally, other servers' bans will be used on your machine (e.g. server B bans someone, your server will ban them as well for your specified amount of time)
 
+&#9989;``enableBanLoadoutSharing (Boolean)``
+If true and ``enableBanning`` is true, then this will share what items are banned to the service to be displayed on the website
+
 &#9989;`` enforceSharedBanLoadouts (Boolean)``
 If true, and ``enableBanSharing`` (and all of its prerequisites) is true, then this will ensure any other server's bans will only be applied to you if it's for an exact loadout that you also have banned.
 e.g. if another server bans the Rubico but you do not, then their Rubico bans will not be applied to you
@@ -206,11 +215,15 @@ Min value: 15
 #### customItems.json
 This is explicit to the WFDataManager program. This specifies item mappings that you want to denote because they are not going to be found by the item cache. For example, "DamageTrigger" is a common 'item' that comes up in parsing a lot as it kills players. However this is not an item that will be recognized in DE's item schemas. 
 When parsing for player kills is performed, it will halt parsing and re-parse the last line the next time around if it encounters an item that is not recognized in the cache. On the second parse, it will take what it gets and add a temporary mapping to the item cache for it. This was originally implemented to avoid the last line being cut off mid-read, but that problem had been resolved later on by stopping parsing at the last line. Nonetheless, the logic still remained and as such, this config can allow you to specify items you know are okay to avoid this 'double parse' scenario.
-The format is simply a JSON object with key:value string entries, where the key is the item name and the value is the display name
+The format is simply a JSON object with key:value string entries, where the key is the internal item name and the value is a JSON object that specifies ``itemName`` (the user-friendly name), and the ``type``, which defines what type of weapon this is. This can be one of: ``AMP, ARCHGUN, ARCHMELEE, ARCHWING, EXALTED_WEAPON, MELEE, NECRAMECH, PRIMARY, RAILJACK, SECONDARY, SENTINEL, WARFRAME, UNKNOWN``
 
-    {
-	"DamageTrigger":"DamageTrigger"
-	}
+{
+	"DamageTrigger":{"itemName":"DamageTrigger","type":"UNKNOWN"},
+	"DarkSwordDaggerSingle":{"itemName":"Dark Split-Sword Heavy","type":"MELEE"},
+	"DarkSwordDaggerDuals":{"itemName":"Dark Split-Sword Dual","type":"MELEE"},
+	"VariantSnowBalls":{"itemName":"Solstice Spheres","type":"PRIMARY"},
+	"VariantXmasScythe":{"itemName":"Solstice Scythe","type":"MELEE"}
+}
 
 #### bannedItems.json
 This is specific to the WFDataManager program. This file specifies items that are bannable for being used, and specifies the threshold for which they should trigger a ban. Additionally, certain elos and gamemodes can be specified as well to limit the scope of certain bans.
@@ -287,16 +300,19 @@ The data received by this service will be stored as per the specified DB config,
 ### Service Requirements
 ```
  * Java 1.8+
+ * dec-0.1.2
+ * gson-2.9.0
  * JDTools (custom jar)
+ * HikariCP-4.0.3
+ * log4j-api-2.19.0
+ * log4j-core-2.19.0
+ * lzma-java-1.3
+ * mysql-connector-java-8.0.31
+ * protobuf-java-3.19.4
+ * slf4j-api-1.7.30
+ * slf4j-simple-1.7.30
+ * WFDataService
  * WFDataModel
- * gson 2.9.0
- * log4j-api 2.19.0
- * log4j-core 2.19.0
- * lzma-java 1.3
- * slf4j-api 1.7.30
- * slf4j-simple 1.7.30
- * mysql-connector-java 8.0.31
- * HikariCP 4.0.3
 ```
 ----
 ### Service Execution
@@ -326,6 +342,18 @@ For any other information and config details, please see log4j's documentation.
 This is the config file for HikariCP, a database pooling manager. This is very simple by default, and just points to a MySQL DB. By default, it points to one running on your localhost.
 For any other information and config details, please see HikariCP's documentation
 
+#### customItems.json
+This is explicit to the WFDataService program. This specifies item mappings that you want to denote because they are not going to be found by the item cache. For example, "DamageTrigger" is a common 'item' that comes up in parsing a lot as it kills players. However this is not an item that will be recognized in DE's item schemas. 
+The format is simply a JSON object with key:value string entries, where the key is the internal item name and the value is a JSON object that specifies ``itemName`` (the user-friendly name), and the ``type``, which defines what type of weapon this is. This can be one of: ``AMP, ARCHGUN, ARCHMELEE, ARCHWING, EXALTED_WEAPON, MELEE, NECRAMECH, PRIMARY, RAILJACK, SECONDARY, SENTINEL, WARFRAME, UNKNOWN``
+
+{
+	"DamageTrigger":{"itemName":"DamageTrigger","type":"UNKNOWN"},
+	"DarkSwordDaggerSingle":{"itemName":"Dark Split-Sword Heavy","type":"MELEE"},
+	"DarkSwordDaggerDuals":{"itemName":"Dark Split-Sword Dual","type":"MELEE"},
+	"VariantSnowBalls":{"itemName":"Solstice Spheres","type":"PRIMARY"},
+	"VariantXmasScythe":{"itemName":"Solstice Scythe","type":"MELEE"}
+}
+
 #### config.properties
 This is explicit to the WFDataService program. This defines all of the properties that may be used and configured for the program. The following is a breakdown of all the properties, what they do, and how they interact with one another. Any field denoted with an * (asterisk) is required to be set.
 
@@ -351,6 +379,13 @@ Denotes what file server status data should be printed to if printServerData is 
 &#128290;`` serverStatusUpdateInterval (Integer)``
 Specifies the interval (in seconds) that the server status file will be updated if printServerData is true.
 
+&#128290;`` serverStatusExpiration (Integer)``
+Specifies the time (in seconds) that a server must have not reported any updates to be considered expired, and therefore removed from that server status file that gets printed if ``printServerData`` is true
+If all servers under a given host are expired, then the host will be removed from display as well until any updates are received from them
+
+&#128290;`` serverOutdatedTime (Integer)``
+Specifies the time (in seconds) that a server will be considered outdated if no data has been received within this limit
+e.g. if  set to 600, this means that a server will be considered outdated if 10 minutes have passed without any updates from it
 
 ----
 ## WFDataModel

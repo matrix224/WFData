@@ -217,13 +217,13 @@ This is explicit to the WFDataManager program. This specifies item mappings that
 When parsing for player kills is performed, it will halt parsing and re-parse the last line the next time around if it encounters an item that is not recognized in the cache. On the second parse, it will take what it gets and add a temporary mapping to the item cache for it. This was originally implemented to avoid the last line being cut off mid-read, but that problem had been resolved later on by stopping parsing at the last line. Nonetheless, the logic still remained and as such, this config can allow you to specify items you know are okay to avoid this 'double parse' scenario.
 The format is simply a JSON object with key:value string entries, where the key is the internal item name and the value is a JSON object that specifies ``itemName`` (the user-friendly name), and the ``type``, which defines what type of weapon this is. This can be one of: ``AMP, ARCHGUN, ARCHMELEE, ARCHWING, EXALTED_WEAPON, MELEE, NECRAMECH, PRIMARY, RAILJACK, SECONDARY, SENTINEL, WARFRAME, UNKNOWN``
 
-{
+   {
 	"DamageTrigger":{"itemName":"DamageTrigger","type":"UNKNOWN"},
 	"DarkSwordDaggerSingle":{"itemName":"Dark Split-Sword Heavy","type":"MELEE"},
 	"DarkSwordDaggerDuals":{"itemName":"Dark Split-Sword Dual","type":"MELEE"},
 	"VariantSnowBalls":{"itemName":"Solstice Spheres","type":"PRIMARY"},
 	"VariantXmasScythe":{"itemName":"Solstice Scythe","type":"MELEE"}
-}
+   }
 
 #### bannedItems.json
 This is specific to the WFDataManager program. This file specifies items that are bannable for being used, and specifies the threshold for which they should trigger a ban. Additionally, certain elos and gamemodes can be specified as well to limit the scope of certain bans.
@@ -342,18 +342,6 @@ For any other information and config details, please see log4j's documentation.
 This is the config file for HikariCP, a database pooling manager. This is very simple by default, and just points to a MySQL DB. By default, it points to one running on your localhost.
 For any other information and config details, please see HikariCP's documentation
 
-#### customItems.json
-This is explicit to the WFDataService program. This specifies item mappings that you want to denote because they are not going to be found by the item cache. For example, "DamageTrigger" is a common 'item' that comes up in parsing a lot as it kills players. However this is not an item that will be recognized in DE's item schemas. 
-The format is simply a JSON object with key:value string entries, where the key is the internal item name and the value is a JSON object that specifies ``itemName`` (the user-friendly name), and the ``type``, which defines what type of weapon this is. This can be one of: ``AMP, ARCHGUN, ARCHMELEE, ARCHWING, EXALTED_WEAPON, MELEE, NECRAMECH, PRIMARY, RAILJACK, SECONDARY, SENTINEL, WARFRAME, UNKNOWN``
-
-{
-	"DamageTrigger":{"itemName":"DamageTrigger","type":"UNKNOWN"},
-	"DarkSwordDaggerSingle":{"itemName":"Dark Split-Sword Heavy","type":"MELEE"},
-	"DarkSwordDaggerDuals":{"itemName":"Dark Split-Sword Dual","type":"MELEE"},
-	"VariantSnowBalls":{"itemName":"Solstice Spheres","type":"PRIMARY"},
-	"VariantXmasScythe":{"itemName":"Solstice Scythe","type":"MELEE"}
-}
-
 #### config.properties
 This is explicit to the WFDataService program. This defines all of the properties that may be used and configured for the program. The following is a breakdown of all the properties, what they do, and how they interact with one another. Any field denoted with an * (asterisk) is required to be set.
 
@@ -386,6 +374,18 @@ If all servers under a given host are expired, then the host will be removed fro
 &#128290;`` serverOutdatedTime (Integer)``
 Specifies the time (in seconds) that a server will be considered outdated if no data has been received within this limit
 e.g. if  set to 600, this means that a server will be considered outdated if 10 minutes have passed without any updates from it
+
+#### customItems.json
+This is explicit to the WFDataService program. This specifies item mappings that you want to denote because they are not going to be found by the item cache. For example, "DamageTrigger" is a common 'item' that comes up in parsing a lot as it kills players. However this is not an item that will be recognized in DE's item schemas. 
+The format is simply a JSON object with key:value string entries, where the key is the internal item name and the value is a JSON object that specifies ``itemName`` (the user-friendly name), and the ``type``, which defines what type of weapon this is. This can be one of: ``AMP, ARCHGUN, ARCHMELEE, ARCHWING, EXALTED_WEAPON, MELEE, NECRAMECH, PRIMARY, RAILJACK, SECONDARY, SENTINEL, WARFRAME, UNKNOWN``
+
+   {
+	"DamageTrigger":{"itemName":"DamageTrigger","type":"UNKNOWN"},
+	"DarkSwordDaggerSingle":{"itemName":"Dark Split-Sword Heavy","type":"MELEE"},
+	"DarkSwordDaggerDuals":{"itemName":"Dark Split-Sword Dual","type":"MELEE"},
+	"VariantSnowBalls":{"itemName":"Solstice Spheres","type":"PRIMARY"},
+	"VariantXmasScythe":{"itemName":"Solstice Scythe","type":"MELEE"}
+   }
 
 ----
 ## WFDataModel

@@ -17,11 +17,11 @@ public class ServiceSettingsCfg extends SettingsCfg {
 	private int serverStatusExpiration = 86400;
 	@SettingData(cfgName="serverOutdatedTime", wrapper=Integer.class, minValue=120)
 	private int serverOutdatedTime = 600;
+	@SettingData(cfgName="activityProcessInterval", wrapper=Integer.class, minValue=1800)
+	private int activityProcessInterval = 3600;
 	
-	@SettingData(cfgName="printServerData", wrapper=Boolean.class)
-	protected boolean printServerOutput = false;
-	@SettingData(cfgName="serverDataFile")
-	private String serverOutputFile = getUserDir() + File.separator + "data" + File.separator + "ServerData.json";
+	@SettingData(cfgName="trackServerStatus", wrapper=Boolean.class)
+	protected boolean trackServerStatus = false;
 	@SettingData(cfgName="customItemsConfig")
 	private String customItemsConfig = getUserDir() + File.separator + "cfg" + File.separator + "customItems.json";
 	@SettingData(cfgName="cacheDir")
@@ -50,12 +50,12 @@ public class ServiceSettingsCfg extends SettingsCfg {
 		return serverOutdatedTime;
 	}
 	
-	public boolean printServerData() {
-		return printServerOutput;
+	public int getActivityProcessInterval() {
+		return activityProcessInterval;
 	}
-
-	public String getServerDataFile() {
-		return serverOutputFile;
+	
+	public boolean trackServerStatus() {
+		return trackServerStatus;
 	}
 
 	public String getCustomItemsConfig() {

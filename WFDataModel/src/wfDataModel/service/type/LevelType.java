@@ -18,11 +18,11 @@ public enum LevelType {
 	CEPHALON_SPIRES("CTFCephalonSpire"),
 	COMPOUND("DMForestCompound"),
 	CORE("DMCrpCore"),
-	CORPUS_SHIP("DMCorpusShip"),
+	CORPUS_SHIP("DMCorpusShipWarehouse"),
 	DERELICT_CHAMBERS("CTFOrokinDerelictSmall", "CTFOrokinDerelict"),
 	DOCKING_BAY("DMGrnOcean"),
 	FORGOTTEN_HALLS("CTFOrokinMoonHalls"),
-	FREIGHT_LINE("DMCorpusShipWarehouse"),
+	FREIGHT_LINE("DMCorpusShip"),
 	GAS_WORKS("CTFGasCityRemaster", "CTFCorpusGas"),
 	INFESTED_FRIGATE("CTFInfestedCorpus"),
 	LUA_RUINS("DMOroMoon"),
@@ -37,7 +37,7 @@ public enum LevelType {
 	UNKNOWN("");
 	
 	private static final String LOG_ID = LevelType.class.getSimpleName();
-	private List<String> internalLevels;
+	private final List<String> internalLevels;
 	
 	private LevelType(String... internalLevels) {
 		if (internalLevels != null && internalLevels.length > 0) {

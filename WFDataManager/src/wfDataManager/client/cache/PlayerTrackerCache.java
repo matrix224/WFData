@@ -1,5 +1,6 @@
 package wfDataManager.client.cache;
 
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,15 +68,15 @@ public final class PlayerTrackerCache {
 		return tracked;
 	}
 	
-	public void updatePlayerTracker(String oldUID, String newUID) {
+	public void updatePlayerTracker(Connection conn, String oldUID, String newUID) {
 		for (PlayerTracker tracker : getPlayerTrackers()) {
 			if (tracker.getUID().equals(oldUID)) {
-				PlayerTrackerDao.updatePlayerTracker(tracker, newUID); // Pass in newUID to remap tracker's UID in DB
+				PlayerTrackerDao.updatePlayerTracker(conn, tracker, newUID); // Pass in newUID to remap tracker's UID in DB
 				tracker.setUID(newUID); // Update in object after updating DB
 			} else if (tracker.getKnownAlts().containsKey(oldUID)) {
 				tracker.addKnownAlt(newUID, tracker.getKnownAlts().get(oldUID));
 				tracker.removeKnownAlt(oldUID);
-				PlayerTrackerDao.updatePlayerTracker(tracker); // Note don't pass newUID into method here since we're updating alt references, not tracker UID itself
+				PlayerTrackerDao.updatePlayerTracker(conn, tracker); // Note don't pass newUID into method here since we're updating alt references, not tracker UID itself
 			}
 		}
 		

@@ -1,11 +1,5 @@
 package wfDataService.service.task;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -13,7 +7,8 @@ import jdtools.logging.Log;
 import wfDataModel.service.codes.JSONField;
 import wfDataService.service.cache.ServerClientCache;
 import wfDataService.service.data.ServerClientData;
-import wfDataService.service.util.ServiceSettingsUtil;
+import wfDataService.service.db.ProcessorVarDao;
+import wfDataService.service.db.ServerClientDao;
 
 /**
  * Task to process and print statuses of all current registered client servers.
@@ -50,13 +45,17 @@ public class ServerStatusTask implements Runnable {
 						regionData.addProperty(JSONField.OLDEST, Math.min(regionData.get(JSONField.OLDEST).getAsLong(), serverStatusData.get(JSONField.OLDEST).getAsLong()));
 						regionData.addProperty(JSONField.OUTDATED, regionData.get(JSONField.OUTDATED).getAsBoolean() || serverStatusData.get(JSONField.OUTDATED).getAsBoolean());
 						regionArr.add(serverStatusData);
+						
+						// If this server has data, update basic info in the DB
+						ServerClientDao.updateClientData(serverClient);
 					}
+
 				}
 			}
 
-			try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(ServiceSettingsUtil.getServerStatusFile()), StandardCharsets.UTF_8))) {
-				writer.write(serverOutput.toString());
-			}
+			// Update the DB values of client data and the formatted server status data
+			ServerClientCache.singleton().updateClientDataDB();
+			ProcessorVarDao.updateVar(ProcessorVarDao.VAR_SERVER_STATUS, serverOutput.toString());
 		} catch (Throwable t) {
 			Log.error(ServerStatusTask.class.getSimpleName() + "() : Exception -> ", t);
 		}

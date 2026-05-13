@@ -11,7 +11,7 @@ public enum RequestType {
 	GET_BANS("/getBans/"),
 	ADD_DATA("/addData/");
 	
-	private String endPoint;
+	private final String endPoint;
 	
 	private RequestType(String endPoint) {
 		this.endPoint = endPoint;

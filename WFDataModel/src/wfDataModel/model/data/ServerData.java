@@ -108,7 +108,9 @@ public class ServerData {
 
 	@Expose (serialize = false, deserialize = false) 
 	private Map<String, String> relayIPMapping = new HashMap<String, String>(2);
-
+	@Expose (serialize = false, deserialize = false) 
+	private ServerAllocatorData allocatorData;
+	
 	public ServerData(String id, long logPosition) {
 		this.id = id;
 		this.logPosition = logPosition;
@@ -317,6 +319,7 @@ public class ServerData {
 			clearAccountIDMappings();
 			clearGuessConnMappings();
 			clearConnToAcctMappings();
+			setAllocatorData(null);
 		} else {
 			// Important that this gets set first
 			// If anything went wrong with below methods, want to make sure it just gets stuck parsing here
@@ -443,6 +446,10 @@ public class ServerData {
 		this.gameSettings = gameSettings;
 	}
 
+	public JsonObject getGameSettings() {
+		return gameSettings;
+	}
+	
 	public int getEloRating() {
 		return gameSettings != null ? gameSettings.get("eloRating").getAsInt() : -1;
 	}
@@ -865,6 +872,14 @@ public class ServerData {
 		return currentLaunchDir;
 	}
 
+	public void setAllocatorData(ServerAllocatorData allocatorData) {
+		this.allocatorData = allocatorData;
+	}
+	
+	public ServerAllocatorData getAllocatorData() {
+		return allocatorData;
+	}
+		
 	private void buildFromDB(JsonObject dataObj) throws ParseException {
 		if (dataObj.has(JSONField.POSITION)) {
 			setLogPosition(dataObj.get(JSONField.POSITION).getAsLong());
@@ -997,6 +1012,9 @@ public class ServerData {
 		dataObj.add(JSONField.SETTINGS, gameSettings);
 		dataObj.add(JSONField.PLAYERS, getConnectedPlayersDB());
 		dataObj.add(JSONField.PROXIES, getProxiesDB());
+		if (getAllocatorData() != null) {
+			dataObj.add(JSONField.ALLOCATOR, getAllocatorData().getAllocatorDataDB());
+		}
 
 		return dataObj.toString();
 	}

@@ -37,7 +37,9 @@ public class ServerClientDao {
 		 	while (rs.next()) {
 		 		ServerClientData clientData = new ServerClientData(rs.getInt("SID"), rs.getString("DISPLAY_NAME"));
 		 		String clientProps = rs.getString("PROPERTIES");
+		 		clientData.setAbbrevName(rs.getString("ABBREV_NAME"));
 		 		clientData.setLastBanPollTime(rs.getLong("LAST_BAN_POLL"));
+		 		clientData.setLastDataReceived(rs.getLong("LAST_DATA_RECEIVED"));
 		 		clientData.setRegion(RegionType.codeToType(rs.getInt("REGION")));
 		 		clientData.setValidated(rs.getInt("VALIDATED") == 1);
 		 		if (!MiscUtil.isEmpty(clientProps)) {
@@ -65,23 +67,27 @@ public class ServerClientDao {
 		
 		try {
 		 	conn = ResourceManager.getDBConnection();
-		 	ps = conn.prepareStatement("UPDATE MANAGER_CLIENT SET DISPLAY_NAME = ?, REGION=?, LAST_BAN_POLL=?, VALIDATED=?, PROPERTIES=? WHERE SID=?");
+		 	ps = conn.prepareStatement("UPDATE MANAGER_CLIENT SET DISPLAY_NAME = ?, ABBREV_NAME=?, REGION=?, LAST_BAN_POLL=?, LAST_DATA_RECEIVED=?, VALIDATED=?, PROPERTIES=? WHERE SID=?");
 		 	ps.setString(1, data.getDisplayName());
-		 	ps.setInt(2, data.getRegion().getCode());
-		 	ps.setLong(3, data.getLastBanPollTime());
-		 	ps.setInt(4, data.isValidated() ? 1 : 0);
-		 	ps.setString(5, data.getServerClientProperties() != null ? data.getServerClientProperties().toString() : null);
-		 	ps.setInt(6, data.getServerClientID());
+		 	ps.setString(2, data.getAbbrevName());
+		 	ps.setInt(3, data.getRegion().getCode());
+		 	ps.setLong(4, data.getLastBanPollTime());
+		 	ps.setLong(5, data.getLastDataReceived());
+		 	ps.setInt(6, data.isValidated() ? 1 : 0);
+		 	ps.setString(7, data.getServerClientProperties() != null ? data.getServerClientProperties().toString() : null);
+		 	ps.setInt(8, data.getServerClientID());
 		 	int updated = ps.executeUpdate();
 		 	if (updated == 0) {
 		 		ResourceManager.releaseResources(ps);
-			 	ps = conn.prepareStatement("INSERT INTO MANAGER_CLIENT (SID, DISPLAY_NAME, REGION, LAST_BAN_POLL, VALIDATED, PROPERTIES) VALUES (?,?,?,?,?,?)");
+			 	ps = conn.prepareStatement("INSERT INTO MANAGER_CLIENT (SID, DISPLAY_NAME, ABBREV_NAME, REGION, LAST_BAN_POLL, LAST_DATA_RECEIVED, VALIDATED, PROPERTIES) VALUES (?,?,?,?,?,?,?,?)");
 			 	ps.setInt(1, data.getServerClientID());
 			 	ps.setString(2, data.getDisplayName());
-			 	ps.setInt(3, data.getRegion().getCode());
-			 	ps.setLong(4, data.getLastBanPollTime());
-			 	ps.setInt(5, data.isValidated() ? 1 : 0);
-			 	ps.setString(6, data.getServerClientProperties() != null ? data.getServerClientProperties().toString() : null);
+			 	ps.setString(3, data.getAbbrevName());
+			 	ps.setInt(4, data.getRegion().getCode());
+			 	ps.setLong(5, data.getLastBanPollTime());
+			 	ps.setLong(6, data.getLastDataReceived());
+			 	ps.setInt(7, data.isValidated() ? 1 : 0);
+			 	ps.setString(8, data.getServerClientProperties() != null ? data.getServerClientProperties().toString() : null);
 			 	ps.executeUpdate();
 		 	}
 		} catch (Exception e) {

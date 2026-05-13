@@ -116,6 +116,10 @@ public abstract class WarframeItemCacheBase implements HTTPRequestListener {
 		}
 	}
 
+	protected Map<String, WeaponData> getWarframeItems() {
+		return warframeItems;
+	}
+	
 	public String getItemName(String itemKey) {
 		if (!hasInit) {
 			init(false);

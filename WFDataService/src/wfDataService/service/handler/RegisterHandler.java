@@ -50,6 +50,7 @@ public class RegisterHandler extends BaseHandler {
 				// If the client name is overridden on our side, don't update it
 				if (!clientData.isNameOverridden() && !clientData.getDisplayName().equals(serverName)) {
 					clientData.setDisplayName(serverName);
+					clientData.setAbbrevName(ServerClientCache.singleton().calculateAbbrevName(clientData));
 				}
 				if (!clientData.getRegion().equals(region)) {
 					clientData.setRegion(region);
@@ -88,6 +89,7 @@ public class RegisterHandler extends BaseHandler {
 					if (inputObj.has(JSONField.PROPERTIES)) {
 						clientData.setServerClientProperties(inputObj.getAsJsonObject(JSONField.PROPERTIES));
 					}
+					clientData.setAbbrevName(ServerClientCache.singleton().calculateAbbrevName(clientData));
 					ServerClientDao.updateClientData(clientData);
 					ServerClientDao.updateClientKey(serverId, aes);
 					ServerClientCache.singleton().addClientData(clientData);

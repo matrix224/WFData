@@ -93,18 +93,18 @@ public final class PlayerTrackerDao {
 		}
 	}
 
-	public static void updatePlayerTracker(PlayerTracker tracker) {
-		updatePlayerTracker(tracker, null);
+	public static void updatePlayerTracker(Connection connectionIn, PlayerTracker tracker) {
+		updatePlayerTracker(connectionIn, tracker, null);
 	}
 	
-	public static void updatePlayerTracker(PlayerTracker tracker, String newUID) {
+	public static void updatePlayerTracker(Connection connectionIn, PlayerTracker tracker, String newUID) {
 		Connection conn = null;
 		PreparedStatement ps = null;
 		boolean remapUID = !MiscUtil.isEmpty(newUID);
 		String sql = !remapUID ? "UPDATE TRACKED_PLAYERS SET KNOWN_IPS=?, KNOWN_ALTS=? WHERE UID=?" : "UPDATE TRACKED_PLAYERS SET KNOWN_IPS=?, KNOWN_ALTS=?, UID=? WHERE UID=?";
 			
 		try {
-			conn = ResourceManager.getDBConnection();
+			conn = connectionIn == null ? ResourceManager.getDBConnection() : connectionIn;
 			ps = conn.prepareStatement(sql);
 			ps.setString(1, new Gson().toJson(tracker.getKnownIPs()));
 			ps.setString(2, new Gson().toJson(tracker.getKnownAlts()));
@@ -121,7 +121,11 @@ public final class PlayerTrackerDao {
 		} catch (Exception e) {
 			Log.error(LOG_ID + ".updatePlayerTracker() : Exception trying to update tracked player -> ", e);
 		} finally {
-			ResourceManager.releaseResources(conn, ps);
+			if (connectionIn == null) {
+				ResourceManager.releaseResources(conn, ps);
+			} else {
+				ResourceManager.releaseResources(ps);
+			}
 		}
 	}
 	

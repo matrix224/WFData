@@ -13,6 +13,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.annotations.Expose;
 
 import jdtools.util.MiscUtil;
 import wfDataModel.model.data.WeaponData;
@@ -31,13 +32,25 @@ import wfDataService.service.util.ServiceSettingsUtil;
  */
 public class ServerClientData {
 
+	@Expose()
 	private String displayName; // Friendly name
+	@Expose()
+	private String abbrevName; // Abbreviated name
+	@Expose()
 	private int serverClientID; 
+	@Expose()
 	private JsonObject serverClientProperties;
+	@Expose()
 	private RegionType region = RegionType.UNKNOWN;
+	@Expose()
 	private long lastBanPollTime;
+	@Expose()
+	private long lastDataReceived;
+	@Expose()
 	private boolean isValidated = false;
+	@Expose()
 	private boolean isNameOverridden = false;
+	@Expose()
 	private Map<String, JsonObject> currentServerData = new HashMap<String, JsonObject>(2); // ServerID -> data
 
 	public ServerClientData(int serverID, String displayName) {
@@ -56,6 +69,14 @@ public class ServerClientData {
 	public String getDisplayName() {
 		return displayName;
 	}
+	
+	public void setAbbrevName(String abbrevName) {
+		this.abbrevName = abbrevName;
+	}
+	
+	public String getAbbrevName() {
+		return abbrevName;
+	}
 
 	public void setRegion(RegionType region) {
 		this.region = region;
@@ -71,6 +92,14 @@ public class ServerClientData {
 
 	public long getLastBanPollTime() {
 		return lastBanPollTime;
+	}
+	
+	public void setLastDataReceived(long lastDataReceived) {
+		this.lastDataReceived = lastDataReceived;
+	}
+
+	public long getLastDataReceived() {
+		return lastDataReceived;
 	}
 
 	public void setValidated(boolean isValidated) {
@@ -126,6 +155,8 @@ public class ServerClientData {
 			boolean anyOutdated = false;
 			for (String id : currentServerData.keySet()) {
 				JsonObject serverData = currentServerData.get(id);
+				int gameModeId = serverData.has(JSONField.SETTINGS) ? serverData.getAsJsonObject(JSONField.SETTINGS).get(JSONField.GAME_MODE).getAsInt() : 0;
+				int elo = serverData.has(JSONField.SETTINGS) ? serverData.getAsJsonObject(JSONField.SETTINGS).get(JSONField.ELO).getAsInt() : 0;
 				long timestamp = serverData.has(JSONField.TIMESTAMP) ? serverData.get(JSONField.TIMESTAMP).getAsLong() : -1;
 				if (timestamp > 0) {
 					// If this server is older than the allowed expiration time, don't include it
@@ -141,9 +172,11 @@ public class ServerClientData {
 				if (serverData.has(JSONField.SETTINGS)) {
 					maxPlayers += serverData.getAsJsonObject(JSONField.SETTINGS).get(JSONField.MAX).getAsInt();
 				}
-				if (!serverData.has(JSONField.DATA_ID)) {
-					serverData.addProperty(JSONField.DATA_ID, "" + statusId + serverData.getAsJsonObject(JSONField.SETTINGS).get(JSONField.GAME_MODE).getAsString() + serverData.getAsJsonObject(JSONField.SETTINGS).get(JSONField.ELO).getAsString() + id);
+
+				if (!serverData.has(JSONField.DATA_ID) || !serverData.get(JSONField.DATA_ID).getAsString().startsWith(statusId + "" + gameModeId + "" + elo) ) {
+					serverData.addProperty(JSONField.DATA_ID, "" + statusId + String.valueOf(gameModeId) + String.valueOf(elo) + id);
 				}
+				
 				// Uptime for this server
 				if (serverData.has(JSONField.UTC)) {
 					long start = serverData.get(JSONField.UTC).getAsLong();
@@ -180,6 +213,7 @@ public class ServerClientData {
 			}
 			serverStatus.add(JSONField.DATA, serversArr);
 			serverStatus.addProperty(JSONField.SERVER_NAME, displayName);
+			serverStatus.addProperty(JSONField.ABBREV_NAME, abbrevName);
 			serverStatus.addProperty(JSONField.ID, statusId);
 			serverStatus.addProperty(JSONField.OLDEST, oldest);
 			serverStatus.addProperty(JSONField.TOTAL, curPlayers);

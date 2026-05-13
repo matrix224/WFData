@@ -15,6 +15,8 @@ import java.time.zone.ZoneRules;
 import java.util.Locale;
 import java.util.Objects;
 
+import jdtools.util.MiscUtil;
+
 /**
  * Util for handling various date-related tasks
  * @author MatNova
@@ -29,12 +31,23 @@ public final class DateUtil {
 	private static final int SECONDS_PER_DAY = 86400;
 	
 	/**
-	 * Given a date string in the format "yyyy-MM-dd", will return a LocalDate representation of it
+	 * Given a date string in the format "yyyy-MM-dd", will return a LocalDate representation of it. <br>
+	 * If the given string is null, this will return null.
 	 * @param str
 	 * @return
 	 */
 	public static LocalDate getWeekDate(String str) {
-		return LocalDate.parse(str, WEEK_FORMAT);
+		return MiscUtil.isEmpty(str) ? null : LocalDate.parse(str, WEEK_FORMAT);
+	}
+	
+	/**
+	 * Given a LocalDate, will return a string representation of it in the format "yyyy-MM-dd". <br>
+	 * If the given date is null, this will return null.
+	 * @param date
+	 * @return
+	 */
+	public static String getWeekDate(LocalDate date) {
+		return date == null ? null : date.format(WEEK_FORMAT);
 	}
 	
 	/**

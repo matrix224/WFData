@@ -8,13 +8,14 @@ package wfDataModel.service.type;
 public enum PlatformType {
 	PC(494),
 	XBOX(495),
-	PSN(496),
-	NSW(497),
+	PSN(496), // Both PS4 and PS5
+	NSW(497), // Switch 1
 	IOS(498),
-	ANDROID(499),  // TODO: Assuming this
+	ANDROID(499),
+	NSW2(500), // Switch 1 and Switch 2 have different platform codes for whatever reason
 	UNKNOWN(0);
 	
-	private int code;
+	private final int code;
 	
 	private PlatformType(int code) {
 		this.code = code;

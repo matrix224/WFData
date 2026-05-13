@@ -151,6 +151,7 @@ public class AddDataHandler extends BaseHandler {
 							response = resp.toString();
 						}
 						TransactionDao.markTransaction(transId, clientData.getServerClientID(), origType);
+						clientData.setLastDataReceived(System.currentTimeMillis());
  					}
 						
 				} else {

@@ -1,8 +1,11 @@
 package wfDataService.service.cache;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import wfDataModel.model.cache.WarframeItemCacheBase;
+import wfDataModel.model.data.WeaponData;
 import wfDataService.service.util.ServiceSettingsUtil;
 
 /**
@@ -16,6 +19,7 @@ public class WarframeItemCache extends WarframeItemCacheBase {
 	private static WarframeItemCache singleton;
 
 	private WarframeItemCache() {
+		init(false);
 	}
 
 	public static WarframeItemCache singleton() {
@@ -35,6 +39,10 @@ public class WarframeItemCache extends WarframeItemCacheBase {
 			return true;
 		}
 		return false;
+	}
+	
+	public List<WeaponData> getWeaponData() {
+		return new ArrayList<>(getWarframeItems().values());
 	}
 	
 	@Override

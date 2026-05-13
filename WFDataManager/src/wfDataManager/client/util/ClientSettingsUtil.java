@@ -173,6 +173,18 @@ public class ClientSettingsUtil {
 		return singleton().getBanFetchInterval();
 	}
 
+	public static boolean enableAllocator() {
+		return singleton().enableAllocator();
+	}
+	
+	public static String getAllocatorConfig() {
+		return singleton().getAllocatorConfig();
+	}
+	
+	public static int getAllocatorInterval() {
+		return singleton().getAllocatorInterval();
+	}
+	
 	public static String getCacheDir() {
 		return singleton().getCacheDir();
 	}

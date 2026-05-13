@@ -8,7 +8,7 @@ package wfDataModel.service.type;
 public enum BanProtocolType {
 	ANY("any"), TCP("tcp"), UDP("udp");
 	
-	private String code;
+	private final String code;
 	
 	private BanProtocolType(String code) {
 		this.code = code;

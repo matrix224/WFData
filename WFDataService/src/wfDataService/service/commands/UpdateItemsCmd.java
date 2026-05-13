@@ -1,19 +1,15 @@
 package wfDataService.service.commands;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.SortedMap;
 
 import jdtools.logging.Log;
-import jdtools.util.MiscUtil;
 import wfDataModel.model.commands.BaseCmd;
 import wfDataModel.model.data.WeaponData;
-import wfDataModel.service.type.WeaponType;
 import wfDataService.service.cache.WarframeItemCache;
 import wfDataService.service.db.GameDataDao;
 
 /**
- * Command to go through all items in the DB and attempt to give them proper names.
+ * Command to go through all items from the cache and attempt to map them into the DB.
  * @author MatNova
  *
  */
@@ -40,34 +36,21 @@ public class UpdateItemsCmd extends BaseCmd {
 				WarframeItemCache.singleton().updateCacheIfNeeded(true);
 			}
 
-			SortedMap<String, WeaponType> unmappedItems = GameDataDao.findUnmappedItems();
-
-			if (MiscUtil.isEmpty(unmappedItems)) {
-				Log.info("No unmapped items found");
-			} else {
-				List<String> mappedItems = new ArrayList<String>();
-
-				for (String item : unmappedItems.keySet()) {
-					WeaponData wepData = WarframeItemCache.singleton().getItemInfo(item);
-					if (wepData != null && !MiscUtil.isEmpty(wepData.getRealName()) && wepData.getType() !=null && (!wepData.getRealName().equals(item) || !wepData.getType().equals(unmappedItems.get(item)))) {
-						String itemName = wepData.getRealName();
-						WeaponType type = wepData.getType();
-						if (GameDataDao.updateItem(item, itemName, type)) {
-							Log.info("Mapped " + item + " to " + itemName + " and type " + type);
-							mappedItems.add(item);
-						} else {
-							Log.info("Could not update " + item + " to " + itemName + " and type " + type);
-						}
-					}
-				}
-
-				Log.info("Mapped " + mappedItems.size() + " / " + unmappedItems.size() + " items");
-				unmappedItems.keySet().removeAll(mappedItems);
-				if (!MiscUtil.isEmpty(unmappedItems)) {
-					Log.info("Remaining unmapped items: " + unmappedItems.keySet());
+			List<WeaponData> weaponData = WarframeItemCache.singleton().getWeaponData();
+			int numProcessed = 0;
+			Log.info("Will process " + weaponData.size(), " items for mapping");
+			for (WeaponData data : weaponData) {
+				if (GameDataDao.updateItem(data.getInternalName(), data.getRealName(), data.getType())) {
+					numProcessed++;
+				} else {
+					Log.info("Could not update " + data.getInternalName() + " to " + data.getRealName() + " and type " + data.getType());
 				}
 			}
+
+			Log.info("Successfully processed " + numProcessed + " / " + weaponData.size() + " items");
+
 		}
+
 	}
 
 }

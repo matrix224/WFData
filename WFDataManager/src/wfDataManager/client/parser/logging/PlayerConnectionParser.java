@@ -128,7 +128,7 @@ public class PlayerConnectionParser extends BaseLogParser {
 					if (!MiscUtil.isEmpty(trackers)) {
 						for (PlayerTracker tracker : trackers) {
 							if ((tracker.getUID().equals(player.getUID()) || tracker.getKnownIPs().contains(ip) || tracker.getKnownAlts().containsKey(player.getUID())) && tracker.updateTracker(player.getUID(), player.getPlayerName(), ip)) {
-								PlayerTrackerDao.updatePlayerTracker(tracker);
+								PlayerTrackerDao.updatePlayerTracker(null, tracker);
 								Log.info(LOG_ID + ".mapPlayerIP() : Found new match for player tracker: trackerUID=" + tracker.getUID() + ", playerUID=" + player.getUID() + ", playerName=" + playerName + ", playerIP=" + ip);
 							}
 						}

@@ -10,9 +10,11 @@ import jdtools.logging.Log;
 import wfDataModel.service.codes.JSONField;
 import wfDataModel.service.codes.ResponseCode;
 import wfDataModel.service.data.BanData;
+import wfDataModel.service.data.BanSpec;
 import wfDataModel.service.data.ResponseData;
 import wfDataService.service.cache.BanDataCache;
 import wfDataService.service.data.ServerClientData;
+import wfDataService.service.db.ActivityDao;
 
 /**
  * Handler for receiving and processing a ban addition from a client.
@@ -29,11 +31,22 @@ public class AddBanHandler extends BaseHandler {
 
 		if (inputObj.has(JSONField.BANS)) {
 			JsonObject bansObj = inputObj.getAsJsonObject(JSONField.BANS);
-			BanData banData =  new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create().fromJson(bansObj, BanData.class);
+			BanData banData = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create().fromJson(bansObj, BanData.class);
 			if (banData == null || !BanDataCache.singleton().addBanData(clientData, banData)) {
 				rc = ResponseCode.ERROR;
 				response = "Ban could not be added properly";
 				Log.warn(LOG_ID + ".getResponse() : Could not parse ban properly, reporter=" + clientData.getDisplayName() + ", json=" + bansObj);
+			} else {
+				BanSpec spec = banData.getBanSpecs().stream().findFirst().get(); // We assume this BanData has just one spec per user
+				if (spec != null) {
+					Long banTime = spec.getBanTime();
+					// If the given spec has a ban time that's over 20 seconds in the future, just set it to the current time
+					if (banTime != null && banTime > System.currentTimeMillis() + 20000) {
+						spec.setBanTime(System.currentTimeMillis());
+					}
+				}
+
+				ActivityDao.addBanLog(clientData, banData);
 			}
 		} else {
 			rc = ResponseCode.ERROR;

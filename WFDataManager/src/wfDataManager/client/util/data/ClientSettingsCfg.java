@@ -90,6 +90,14 @@ public class ClientSettingsCfg extends SettingsCfg {
 	@SettingData(cfgName="banFetchInterval", wrapper=Integer.class, minValue=15.0)
 	private int banFetchInterval = 15;
 	
+	@SettingData(cfgName="enableAllocator", wrapper=Boolean.class)
+	private boolean enableAllocator;
+	@SettingData(cfgName="allocatorConfig")
+	private String allocatorConfig = getUserDir() + File.separator + "cfg" + File.separator + "allocator.json";
+	@SettingData(cfgName="allocatorInterval", wrapper=Integer.class, minValue=60.0)
+	private int allocatorInterval = 120;
+	
+	
 	private ProcessModeType processMode;
 	private int serverID;
 
@@ -279,5 +287,17 @@ public class ClientSettingsCfg extends SettingsCfg {
 	
 	public int getBanFetchInterval() {
 		return banFetchInterval;
+	}
+	
+	public boolean enableAllocator() {
+		return enableAllocator;
+	}
+	
+	public String getAllocatorConfig() {
+		return allocatorConfig;
+	}
+	
+	public int getAllocatorInterval() {
+		return allocatorInterval;
 	}
 }

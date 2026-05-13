@@ -15,7 +15,10 @@ import wfDataService.service.db.manager.ResourceManager;
 public final class ProcessorVarDao {
 
 	public static final String VAR_DB_VERSION = "DBVER";
-	
+	public static final String VAR_WEEKLY_DATE = "WEEKLYDATE"; // Latest date weekly activity processing had been processed for
+	public static final String VAR_SERVER_STATUS = "SERVERSTATUS";
+	public static final String VAR_CLIENT_STATUS = "CLIENTSTATUS";
+
 	private static final String LOG_ID = ProcessorVarDao.class.getSimpleName();
 	
 	public static String getVar(String varName) {
@@ -73,7 +76,7 @@ public final class ProcessorVarDao {
 			ps.setString(2, varValue);
 			int result = ps.executeUpdate();
 			
-			if (result != 1) {
+			if (result == 0) {
 				Log.warn(LOG_ID + ".updateVar() : Did not update var " + varName + ", result = " + result);
 			}
 		} catch (Exception e) {

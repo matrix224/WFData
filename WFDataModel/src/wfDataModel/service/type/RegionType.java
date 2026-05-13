@@ -14,9 +14,10 @@ public enum RegionType {
 	OCEANIA(9),
 	RUSSIA(14),
 	SOUTH_AMERICA(6),
+	WORLD(99),       // Made up for data purposes
 	UNKNOWN(0);
 	
-	private int code;
+	private final int code;
 	
 	private RegionType(int code) {
 		this.code = code;

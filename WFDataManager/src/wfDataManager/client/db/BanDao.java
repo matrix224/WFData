@@ -5,13 +5,19 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import jdtools.logging.Log;
+import jdtools.util.MiscUtil;
 import wfDataManager.client.db.manager.ResourceManager;
 import wfDataModel.service.data.BanData;
 import wfDataModel.service.data.BanSpec;
@@ -82,7 +88,7 @@ public final class BanDao {
 
 		try {
 			conn = ResourceManager.getDBConnection();
-			ps = conn.prepareStatement("SELECT MP.UID AS UID, D.NAME AS PLAYER_NAME, MP.LOADOUTS AS LOADOUTS, CB.WHEN_BANNED AS WHEN_BANNED, CB.LOADOUT_ID AS LOADOUT_ID, CB.REASON AS REASON, CB.IP AS IP, CB.IS_PRIMARY AS IS_PRIMARY, CB.IS_PROXY AS IS_PROXY FROM MARKED_PLAYERS MP, PLAYER_PROFILE D LEFT OUTER JOIN CURRENT_BANS CB ON CB.UID=D.UID WHERE D.UID=MP.UID GROUP BY CB.UID, CB.IP");
+			ps = conn.prepareStatement("SELECT MP.UID AS UID, COALESCE(D.NAME, 'Unknown') AS PLAYER_NAME, MP.LOADOUTS AS LOADOUTS, CB.WHEN_BANNED AS WHEN_BANNED, CB.LOADOUT_ID AS LOADOUT_ID, CB.REASON AS REASON, CB.IP AS IP, CB.IS_PRIMARY AS IS_PRIMARY, CB.IS_PROXY AS IS_PROXY FROM MARKED_PLAYERS MP LEFT OUTER JOIN CURRENT_BANS CB ON CB.UID=MP.UID LEFT OUTER JOIN PLAYER_PROFILE D ON D.UID=MP.UID GROUP BY MP.UID, CB.IP");
 			rs = ps.executeQuery();
 
 			while (rs.next()) {
@@ -125,12 +131,12 @@ public final class BanDao {
 		return data;
 	}
 
-	public static void updateBanDataReferences(String oldUID, String newUID) {
+	public static void updateBanDataReferences(Connection connectionIn, String oldUID, String newUID) {
 		Connection conn = null;
 		PreparedStatement ps = null;
 
 		try {
-			conn = ResourceManager.getDBConnection();
+			conn = connectionIn == null ? ResourceManager.getDBConnection() : connectionIn;
 			ps = conn.prepareStatement("UPDATE CURRENT_BANS SET UID=? WHERE UID=?");
 			ps.setString(1, newUID);
 			ps.setString(2, oldUID);
@@ -148,8 +154,86 @@ public final class BanDao {
 		} catch (Exception e) {
 			Log.error(LOG_ID + ".updateBanDataReferences() : Exception updating ban data -> " + e.getLocalizedMessage());
 		} finally {
-			ResourceManager.releaseResources(conn, ps);
+			if (connectionIn == null) {
+				ResourceManager.releaseResources(conn, ps);
+			} else {
+				ResourceManager.releaseResources(ps);
+			}
 		}
-
 	}
+
+	public static void mergeMarkedPlayers(Connection connectionIn, String oldUID, String newUID) {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		String oldLoadoutsStr = null;
+		String newLoadoutsStr = null;
+
+		try {
+			conn = connectionIn == null ? ResourceManager.getDBConnection() : connectionIn;
+			ps = conn.prepareStatement("SELECT UID,LOADOUTS FROM MARKED_PLAYERS WHERE UID=? OR UID=?");
+			ps.setString(1, oldUID);
+			ps.setString(2, newUID);
+			rs = ps.executeQuery();
+			while (rs.next()) {
+				String uid = rs.getString("UID");
+				if (oldUID.equals(uid)) {
+					oldLoadoutsStr = rs.getString("LOADOUTS");
+				} else {
+					newLoadoutsStr = rs.getString("LOADOUTS");
+				}
+			}
+
+			ResourceManager.releaseResources(ps, rs);
+
+			if (!MiscUtil.isEmpty(oldLoadoutsStr)) {
+				// If there is an entry for the old UID and an entry for the new UID, then we will merge them together
+				// If there is an entry for the old UID but not one for the new UID, then update old UID reference to new UID reference
+				// Otherwise if there is not an entry for the old UID, nothing to do here
+				if (!MiscUtil.isEmpty(newLoadoutsStr)) {
+					JsonObject oldLoadoutsObj = JsonParser.parseString(oldLoadoutsStr).getAsJsonObject();
+					JsonArray oldLoadoutsArr = oldLoadoutsObj.getAsJsonArray("loadouts");
+					JsonObject newLoadoutsObj = JsonParser.parseString(newLoadoutsStr).getAsJsonObject();
+					JsonArray newLoadoutsArr = newLoadoutsObj.getAsJsonArray("loadouts");
+					Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+					Set<Long> loadoutValues = new HashSet<>();
+					for (JsonElement e : oldLoadoutsArr) {
+						loadoutValues.add(e.getAsLong());
+					}
+					for (JsonElement e : newLoadoutsArr) {
+						loadoutValues.add(e.getAsLong());
+					}
+
+					newLoadoutsObj.add("loadouts", gson.toJsonTree(loadoutValues));
+					
+					ps = conn.prepareStatement("UPDATE MARKED_PLAYERS SET LOADOUTS=? WHERE UID=?");
+					ps.setString(1, newLoadoutsObj.toString());
+					ps.setString(2, newUID);
+					int result = ps.executeUpdate();
+					Log.info(LOG_ID + ".mergeMarkedPlayers() : Updated " + result + " marked player references for new UID " + newUID);
+					ResourceManager.releaseResources(ps);
+
+					ps = conn.prepareStatement("DELETE FROM MARKED_PLAYERS WHERE UID=?");
+					ps.setString(1, oldUID);
+					result = ps.executeUpdate();
+					Log.info(LOG_ID + ".mergeMarkedPlayers() : Removed " + result + " marked player references for old UID " + oldUID);
+				} else {
+					ps = conn.prepareStatement("UPDATE MARKED_PLAYERS SET UID=? WHERE UID=?");
+					ps.setString(1, newUID);
+					ps.setString(2, oldUID);
+					int result = ps.executeUpdate();
+					Log.info(LOG_ID + ".mergeMarkedPlayers() : Updated " + result + " marked player references from old UID " + oldUID + " to new UID " + newUID);
+				}
+			}
+		} catch (Exception e) {
+			Log.error(LOG_ID + ".mergeMarkedPlayers() : Exception updating ban data -> " + e.getLocalizedMessage());
+		} finally {
+			if (connectionIn == null) {
+				ResourceManager.releaseResources(conn, ps, rs);
+			} else {
+				ResourceManager.releaseResources(ps, rs);
+			}
+		}
+	}
+
 }

@@ -3,6 +3,7 @@ package wfDataService.service.util.data;
 import jdtools.logging.Log;
 import wfDataModel.model.util.data.TaskManager;
 import wfDataService.service.task.ServerStatusTask;
+import wfDataService.service.task.ActivityTask;
 import wfDataService.service.util.ServiceSettingsUtil;
 import wfDataService.service.util.ServiceTaskUtil;
 
@@ -25,6 +26,10 @@ public class ServiceTaskManager extends TaskManager {
 			period = ServiceSettingsUtil.getServerStatusUpdateInterval();
 			delay = ServiceSettingsUtil.getServerStatusUpdateInterval();
 			task = new ServerStatusTask();
+		} else if (ServiceTaskUtil.TASK_ACTIVITY.equals(taskName)) {
+			period = ServiceSettingsUtil.getActivityProcessInterval();
+			delay = ServiceSettingsUtil.getActivityProcessInterval();
+			task = new ActivityTask();
 		} else {
 			Log.warn(LOG_ID + ".getTask() : Unknown taskName provided -> " + taskName);
 		}

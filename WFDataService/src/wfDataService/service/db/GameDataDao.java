@@ -17,7 +17,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 import jdtools.exception.ProcessingException;
@@ -30,7 +29,6 @@ import wfDataModel.model.data.ServerData;
 import wfDataModel.model.data.WeaponData;
 import wfDataModel.model.util.DBUtil;
 import wfDataModel.model.util.DateUtil;
-import wfDataModel.service.type.EloType;
 import wfDataModel.service.type.GameDataType;
 import wfDataModel.service.type.GameMode;
 import wfDataModel.service.type.PlatformType;
@@ -116,11 +114,14 @@ public class GameDataDao {
 						DBPlayerMergeProcessor merger = new DBPlayerMergeProcessor();
 						for (DBPlayerData dbPlayer : dbData) {
 							if (!dbPlayer.getCurDBUID().equals(data.getUID())) {
-								// If their platforms are different or they're PSN with the same name, will consider okay to merge
+								// If their platforms are different or they're PSN/IOS/Android with the same name, will consider okay to merge
+								// For IOS, this was added 10/31/25 because UID format changed for them at some point
+								// Android added 3/1/2026 because UID may change depending on device
 								// Otherwise will consider an issue for manual review
-								if (dbPlayer.getCurPlatform() != data.getPlatform() ||  (PlatformType.PSN.getCode() == dbPlayer.getCurPlatform() && (dbPlayer.getCurDBAID().equals(data.getAccountID()) || dbPlayer.getCurDBName().equals(data.getPlayerName())))) {
+								if (dbPlayer.getCurPlatform() != data.getPlatform() ||  ((PlatformType.PSN.getCode() == dbPlayer.getCurPlatform() || PlatformType.IOS.getCode() == dbPlayer.getCurPlatform() || PlatformType.ANDROID.getCode() == dbPlayer.getCurPlatform()) && (dbPlayer.getCurDBAID().equals(data.getAccountID()) || dbPlayer.getCurDBName().equals(data.getPlayerName())))) {
 									merger.mergePlayerData(conn, dbPlayer.getCurDBUID(), data.getUID());
 									merger.mergeWeeklyData(conn, dbPlayer.getCurDBUID(), data.getUID());
+									merger.mergeBanLogs(conn, dbPlayer.getCurDBUID(), data.getUID());
 									merger.mergePlayerProfile(conn, data.getAccountID(), dbPlayer.getCurDBUID(), data.getUID());
 									Log.info(LOG_ID, ".updateGameData() : Merged players -> dbUID=" + dbPlayer.getCurDBUID(), ", dbPlatform=" + dbPlayer.getCurPlatform() + ", dbAID=", dbPlayer.getCurDBAID(), ", dbName=", dbPlayer.getCurDBName(), ", curUID=" + data.getUID(), ", curPlatform=" + data.getPlatform(), ", curAID=", data.getAccountID(), ", curName=", data.getPlayerName());
 								} else {
@@ -144,6 +145,7 @@ public class GameDataDao {
 						//  * Player profile (only past_uids if in historical mode)
 						// and if NOT in Historical mode:
 						//  * Ban cache (in case player happened to be banned at some point)
+						//  * Ban log (in case player happened to be banned at some point)
 						//  * Player data (across all SIDs)
 						//  * Weekly data (across all SIDs)
 						//  * Weekly data killed by value - requires fetching all rows and parsing out the field for the UID and updating it
@@ -189,6 +191,17 @@ public class GameDataDao {
 								// STEP 2: Update any ban data
 								BanDataCache.singleton().updateBanData(curDBUID, data.getUID());
 
+								ps = conn.prepareStatement("UPDATE BAN_LOG SET UID=? WHERE UID=?");
+								ps.setString(1, data.getUID());
+								ps.setString(2, curDBUID);
+								result = ps.executeUpdate();
+								if (result <= 0) {
+									Log.warn(LOG_ID + ".updatePlayerData() : Did not update ban log UID for " + data.getPlayerName() + ", result count = " + result);
+								} else {
+									Log.info(LOG_ID + ".updatePlayerData() : Updated ban log UID from " + curDBUID + " to " + data.getUID() + " for player " + data.getPlayerName());
+								}
+								ResourceManager.releaseResources(ps);
+								
 								// STEP 3: Update any player data across ALL SIDs
 								ps = conn.prepareStatement("UPDATE PLAYER_DATA SET UID=? WHERE UID=?");
 								ps.setString(1, data.getUID());
@@ -436,11 +449,6 @@ public class GameDataDao {
 					Log.warn(LOG_ID + ".updateWeeklyPlayerData() : Failed to update weekly data for server " + serverClient.getDisplayName() + ", player=" + data.getPlayerName() + " (" + data.getUID() + ")");
 				}
 			} else {
-
-				// Update the Weekly Activity data before inserting the Weekly Data entry for this player
-				// TODO: Enable this when ready
-				//updateWeeklyActivity(conn, latestSunday, serverClient, server, data);
-
 				// In this case, need to add them to DB
 				ps = conn.prepareStatement("INSERT INTO WEEKLY_DATA (WEEK_DATE,UID,GAME_MODE,ELO,KILLS,DEATHS,MECHANICS,CAPTURES,ROUNDS,WEAPON_KILLS,KILLED_BY,TOTAL_TIME,PLATFORM,SID) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 				ps.setObject(1, latestSunday);
@@ -468,223 +476,6 @@ public class GameDataDao {
 			ResourceManager.releaseResources(ps, rs);
 		}
 	}
-
-	private static void updateWeeklyActivity(Connection conn, LocalDate latestSunday, ServerClientData serverClient, ServerData server, PlayerData data) throws SQLException {
-		PreparedStatement psExists = null;
-		PreparedStatement psUpdate = null;
-		ResultSet rs = null;
-		String platform = String.valueOf(data.getPlatform());
-
-		int serverNewInc = 0;
-		int regionUniInc = 0;
-		int regionNewInc = 0;
-		int totalServerUniInc = 0;
-		int totalRegionUniInc = 0;
-		int totalServerNewInc = 0;
-		int totalRegionNewInc = 0;
-		int result = 0;
-
-		try {
-			psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA W LEFT JOIN MANAGER_CLIENT C ON W.SID=C.SID WHERE W.UID=? AND W.GAME_MODE=? AND W.ELO=? AND C.REGION=?");
-			psExists.setString(1, data.getUID());
-			psExists.setInt(2, server.getGameModeId());
-			psExists.setInt(3, server.getEloRating());
-			psExists.setInt(4, serverClient.getRegion().getCode());
-			rs = psExists.executeQuery();
-
-			if (rs.next()) {
-				// If this UID, GameMode, Elo combination has an entry in weekly_Data for this serverClient's region,
-				// then we'll check if this particular week has an entry for it. If not, this is a unique player for this region this week
-				// Additionally, we need to check if it has one for this serverClient specifically as well to see if it's new for that client in general
-
-				ResourceManager.releaseResources(psExists, rs);
-
-				psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA W LEFT JOIN MANAGER_CLIENT C ON W.SID=C.SID WHERE W.UID=? AND W.GAME_MODE=? AND W.ELO=? AND C.REGION=? AND W.WEEK_DATE=?");
-				psExists.setString(1, data.getUID());
-				psExists.setInt(2, server.getGameModeId());
-				psExists.setInt(3, server.getEloRating());
-				psExists.setInt(4, serverClient.getServerClientID());
-				psExists.setObject(5, latestSunday);
-				rs = psExists.executeQuery();
-
-				// If this UID, GameMode, Elo, region, week_date combination has an entry in weekly_Data, then this is not a unique player for this week in the region
-				// Otherwise this is a unique player for this game mode - elo - region - week combination
-				if (!rs.next()) {
-					regionUniInc = 1;
-				}
-				ResourceManager.releaseResources(psExists, rs);
-
-
-				psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA WHERE UID=? AND GAME_MODE=? AND ELO=? AND SID=?");
-				psExists.setString(1, data.getUID());
-				psExists.setInt(2, server.getGameModeId());
-				psExists.setInt(3, server.getEloRating());
-				psExists.setInt(4, serverClient.getServerClientID());
-				rs = psExists.executeQuery();
-
-				// If this UID, GameMode, Elo, SID combination has an entry in weekly_Data, then this is not a new player at all
-				// Otherwise this is a new player for this game mode - elo - sid combination
-				if (!rs.next()) {
-					serverNewInc = 1;
-				}
-				ResourceManager.releaseResources(psExists, rs);
-
-			} else {
-				ResourceManager.releaseResources(psExists, rs);
-
-				// If this UID, GameMode, Elo combination has no entries in weekly_Data for this serverClient's region,
-				// that means this is a new entry for both that particular serverClient and also that region
-				// Nothing else to check
-				serverNewInc = 1;
-				regionNewInc = 1;
-				regionUniInc = 1;
-			}
-
-
-			String platformKey = "$.\"" + data.getPlatform() + "\"";
-			psUpdate = conn.prepareStatement("UPDATE WEEKLY_ACTIVITY SET NUM_UNIQUE = JSON_SET(NUM_UNIQUE, ?, COALESCE(JSON_EXTRACT(NUM_UNIQUE, ?), 0) + ?), NUM_NEW = JSON_SET(NUM_NEW, ?, COALESCE(JSON_EXTRACT(NUM_NEW, ?), 0) + ?), NUM_UNIQUE_REGION = JSON_SET(NUM_UNIQUE_REGION, ?, COALESCE(JSON_EXTRACT(NUM_UNIQUE_REGION, ?), 0) + ?), NUM_NEW_REGION = JSON_SET(NUM_NEW_REGION, ?, COALESCE(JSON_EXTRACT(NUM_NEW_REGION, ?), 0) + ?) WHERE WEEK_DATE=? AND GAME_MODE=? AND ELO=? AND SID=?");
-			psUpdate.setString(1, platformKey);
-			psUpdate.setString(2, platformKey);
-			psUpdate.setInt(3, 1); // If we're adding a new weekly entry for this gamemode/elo/sid, then this is always a unique player for that week for that combo. So always add 1
-			psUpdate.setString(4, platformKey);
-			psUpdate.setString(5, platformKey);
-			psUpdate.setInt(6, serverNewInc); 
-			psUpdate.setString(7, platformKey);
-			psUpdate.setString(8, platformKey);
-			psUpdate.setInt(9, regionUniInc); 
-			psUpdate.setString(10, platformKey);
-			psUpdate.setString(11, platformKey);
-			psUpdate.setInt(12, regionNewInc); 
-			psUpdate.setObject(13, latestSunday);
-			psUpdate.setInt(14, server.getGameModeId());
-			psUpdate.setInt(15, server.getEloRating());
-			psUpdate.setInt(16, serverClient.getServerClientID());
-			result = psUpdate.executeUpdate();
-
-			// If no row was updated, we assume this is a new weekly activity row
-			if (result != 1) {
-				ResourceManager.releaseResources(psUpdate);
-
-				psUpdate = conn.prepareStatement("INSERT INTO WEEKLY_ACTIVITY (WEEK_DATE, GAME_MODE, ELO, NUM_UNIQUE, NUM_NEW, NUM_UNIQUE_REGION, NUM_NEW_REGION, SID) VALUES (?,?,?,?,?,?,?,?)");
-				psUpdate.setObject(1, latestSunday);
-				psUpdate.setInt(2, server.getGameModeId());
-				psUpdate.setInt(3, server.getEloRating());
-				psUpdate.setString(4, getKeyValue(platform, 1)); // If we're adding a new weekly entry for this gamemode/elo/sid, then this is always a unique player for that week for that combo. So always add 1
-				psUpdate.setString(5, getKeyValue(platform, serverNewInc));
-				psUpdate.setString(6, getKeyValue(platform, regionUniInc));
-				psUpdate.setString(7, getKeyValue(platform, regionNewInc));
-				psUpdate.setInt(8, serverClient.getServerClientID());
-				result = psUpdate.executeUpdate();
-				if (result != 1) {
-					Log.warn(LOG_ID + ".updateWeeklyPlayerData() : Did not insert weekly activity row for server " + serverClient.getDisplayName());
-				}
-			}
-
-
-			// After inserting the weekly activity for this game mode and player, do the same for the total row now
-			psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA W LEFT JOIN MANAGER_CLIENT C ON W.SID=C.SID WHERE W.UID=? AND C.REGION=?");
-			psExists.setString(1, data.getUID());
-			psExists.setInt(2, serverClient.getRegion().getCode());
-			rs = psExists.executeQuery();
-
-			if (rs.next()) {
-				ResourceManager.releaseResources(psExists, rs);
-
-				psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA W LEFT JOIN MANAGER_CLIENT C ON W.SID=C.SID WHERE W.UID=? AND C.REGION=? AND W.WEEK_DATE=?");
-				psExists.setString(1, data.getUID());
-				psExists.setInt(2, serverClient.getServerClientID());
-				psExists.setObject(3, latestSunday);
-				rs = psExists.executeQuery();
-
-				// If this UID does not exist for this region and this week,
-				// then this counts as a unique player for the total row
-				if (!rs.next()) {
-					totalRegionUniInc = 1;
-				}
-
-				ResourceManager.releaseResources(psExists, rs);
-
-				psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA WHERE UID=? AND SID=?");
-				psExists.setString(1, data.getUID());
-				psExists.setInt(2, serverClient.getServerClientID());
-				rs = psExists.executeQuery();
-
-				// If there's no entry at all for this UID and SID,
-				// then this is a new player for the total row
-				if (!rs.next()) {
-					totalServerNewInc = 1;
-				}
-				ResourceManager.releaseResources(psExists, rs);
-
-				psExists = conn.prepareStatement("SELECT 1 FROM WEEKLY_DATA WHERE UID=? AND SID=? AND WEEK_DATE=?");
-				psExists.setString(1, data.getUID());
-				psExists.setInt(2, serverClient.getServerClientID());
-				psExists.setObject(3, latestSunday);
-				rs = psExists.executeQuery();
-
-				// If there's no entry at all for this UID and SID and week,
-				// then this is a unique player for the total row
-				if (!rs.next()) {
-					totalServerUniInc = 1;
-				}
-				ResourceManager.releaseResources(psExists, rs);
-
-			} else {
-				ResourceManager.releaseResources(psExists, rs);
-
-				// This UID was not found in any game mode for this region for any week,
-				// so this counts as a new and unique player for the total row
-				totalServerUniInc = 1;
-				totalServerNewInc = 1;
-				totalRegionUniInc = 1;
-				totalRegionNewInc = 1;
-			}
-
-			psUpdate = conn.prepareStatement("UPDATE WEEKLY_ACTIVITY SET NUM_UNIQUE = JSON_SET(NUM_UNIQUE, ?, COALESCE(JSON_EXTRACT(NUM_UNIQUE, ?), 0) + ?), NUM_NEW = JSON_SET(NUM_NEW, ?, COALESCE(JSON_EXTRACT(NUM_NEW, ?), 0) + ?), NUM_UNIQUE_REGION = JSON_SET(NUM_UNIQUE_REGION, ?, COALESCE(JSON_EXTRACT(NUM_UNIQUE_REGION, ?), 0) + ?), NUM_NEW_REGION = JSON_SET(NUM_NEW_REGION, ?, COALESCE(JSON_EXTRACT(NUM_NEW_REGION, ?), 0) + ?) WHERE WEEK_DATE=? AND GAME_MODE=? AND ELO=? AND SID=?");
-			psUpdate.setString(1, platformKey);
-			psUpdate.setString(2, platformKey);
-			psUpdate.setInt(3, totalServerUniInc); 
-			psUpdate.setString(4, platformKey);
-			psUpdate.setString(5, platformKey);
-			psUpdate.setInt(6, totalServerNewInc); 
-			psUpdate.setString(7, platformKey);
-			psUpdate.setString(8, platformKey);
-			psUpdate.setInt(9, totalRegionUniInc); 
-			psUpdate.setString(10, platformKey);
-			psUpdate.setString(11, platformKey);
-			psUpdate.setInt(12, totalRegionNewInc); 
-			psUpdate.setObject(13, latestSunday);
-			psUpdate.setInt(14, GameMode.TOTAL.getId());
-			psUpdate.setInt(15, EloType.TOTAL.getCode());
-			psUpdate.setInt(16, serverClient.getServerClientID());
-			result = psUpdate.executeUpdate();
-
-			// If no row was updated, we assume this is a new weekly activity row
-			if (result != 1) {
-				ResourceManager.releaseResources(psUpdate);
-
-				psUpdate = conn.prepareStatement("INSERT INTO WEEKLY_ACTIVITY (WEEK_DATE, GAME_MODE, ELO, NUM_UNIQUE, NUM_NEW, NUM_UNIQUE_REGION, NUM_NEW_REGION, SID) VALUES (?,?,?,?,?,?,?,?)");
-				psUpdate.setObject(1, latestSunday);
-				psUpdate.setInt(2, GameMode.TOTAL.getId());
-				psUpdate.setInt(3, EloType.TOTAL.getCode());
-				psUpdate.setString(4, getKeyValue(platform, totalServerUniInc));
-				psUpdate.setString(5, getKeyValue(platform, totalServerNewInc));
-				psUpdate.setString(6, getKeyValue(platform, totalRegionUniInc));
-				psUpdate.setString(7, getKeyValue(platform, totalRegionNewInc));
-				psUpdate.setInt(8, serverClient.getServerClientID());
-				result = psUpdate.executeUpdate();
-				if (result != 1) {
-					Log.warn(LOG_ID + ".updateWeeklyPlayerData() : Did not insert total weekly activity row for server " + serverClient.getDisplayName());
-				}
-			}
-
-
-		} finally {
-			ResourceManager.releaseResources(psExists, psUpdate);
-			ResourceManager.releaseResources(rs);
-		}
-	}
-
 
 	private static int updateWeeklyDataReferences(Connection conn, String oldUID, String newUID) throws SQLException {
 		PreparedStatement ps = null;
@@ -862,11 +653,11 @@ public class GameDataDao {
 
 		try {
 			conn = ResourceManager.getDBConnection();
-			ps = conn.prepareStatement("UPDATE WEAPON_INFO SET WEAPON_REAL = ?, WEAPON_TYPE=? WHERE WEAPON = ?");
-			ps.setString(1, itemName);
-			ps.setString(2, type.name());
-			ps.setString(3, item);
-			mapped = ps.executeUpdate() == 1;
+			ps = conn.prepareStatement("REPLACE INTO WEAPON_INFO (WEAPON, WEAPON_REAL, WEAPON_TYPE) VALUES (?,?,?)");
+			ps.setString(1, item);
+			ps.setString(2, itemName);
+			ps.setString(3, type.name());
+			mapped = ps.executeUpdate() >= 1;
 		} catch (Exception e) {
 			Log.error(LOG_ID + ".updateItemName() : Error occurred -> " + e);
 		} finally {
@@ -875,9 +666,26 @@ public class GameDataDao {
 		return mapped;
 	}
 
-	private static String getKeyValue(String key, int value) {
-		JsonObject obj = new JsonObject();
-		obj.addProperty(key, value);
-		return obj.toString();
+	public static LocalDate getLatestWeeklyDate() {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		LocalDate date = null;
+
+		try {
+			conn = ResourceManager.getDBConnection();
+			ps = conn.prepareStatement("SELECT MAX(WEEK_DATE) AS WEEK_DATE FROM WEEKLY_DATA");
+			rs = ps.executeQuery();
+			if (rs.next()) {
+				date = rs.getObject("WEEK_DATE", LocalDate.class);
+			}
+		} catch (Exception e) {
+			Log.error(LOG_ID + ".getLatestWeeklyDate() : Error occurred -> " + e);
+
+		} finally {
+			ResourceManager.releaseResources(conn, ps, rs);
+		}
+
+		return date;
 	}
 }

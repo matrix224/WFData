@@ -4,6 +4,9 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 import wfDataModel.service.codes.JSONField;
+import wfDataModel.service.type.EloType;
+import wfDataModel.service.type.GameMode;
+import wfDataModel.service.type.PlatformType;
 
 /**
  * Class that defines info about a player's specific ban, such as the specific IP for that ban, whether it's primary or not, etc
@@ -28,7 +31,17 @@ public class BanSpec {
 	private String reportedBy; // For the service, used to denote who actually reported this ban
 	@Expose (serialize = false, deserialize = false) 
 	private int reportingID; // The ID of the reporter
-
+	@Expose()
+	private String bannedItem; // The item that triggered a ban
+	@Expose()
+	private GameMode gameMode; // The game mode that this ban occurred in
+	@Expose()
+	private EloType eloRating; // The elo this ban occurred in
+	@Expose()
+	private PlatformType platform;
+	@Expose()
+	private String zoneId; // The timezone this ban occurred in
+	
 	public BanSpec(String ipAndPort) {
 		this.ip = ipAndPort;
 	}
@@ -112,5 +125,45 @@ public class BanSpec {
 
 	public int getReportingID() {
 		return reportingID;
+	}
+	
+	public void setBannedItem(String bannedItem) {
+		this.bannedItem = bannedItem;
+	}
+	
+	public String getBannedItem() {
+		return bannedItem;
+	}
+	
+	public void setGameMode(GameMode gameMode) {
+		this.gameMode = gameMode;
+	}
+	
+	public GameMode getGameMode() {
+		return gameMode;
+	}
+	
+	public void setEloRating(EloType eloRating) {
+		this.eloRating = eloRating;
+	}
+	
+	public EloType getEloRating() {
+		return eloRating;
+	}
+	
+	public void setPlatformType(PlatformType platform) {
+		this.platform = platform;
+	}
+	
+	public PlatformType getPlatform() {
+		return platform;
+	}
+	
+	public void setZoneId(String zoneId) {
+		this.zoneId = zoneId;
+	}
+	
+	public String getZoneId() {
+		return zoneId;
 	}
 }

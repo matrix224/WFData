@@ -7,21 +7,26 @@ package wfDataModel.service.codes;
  */
 public final class JSONField {
 
+	public static final String ABBREV_NAME = "aname";
 	public static final String ACCOUNT_ID = "aid";
 	public static final String ACCOUNT_ID_TMP = "taid";
 	public static final String ACTIVITY = "act";
+	public static final String ALLOCATOR = "alloc";
 	public static final String AUTH = "auth";
 	
 	public static final String BANS = "bans";
+	public static final String BAN_REASONS = "banReasons";
 	
 	public static final String CONN_HANDLE = "cHndl";
 	public static final String CONN_HANDLE_TMP = "tcHndl";
-
+	public static final String COUNT = "count";
+	
 	public static final String DATA = "data";
 	public static final String DATA_ID = "did";
 	public static final String DIR = "dir";
 	
 	public static final String ELO = "elo";
+	public static final String ENABLED = "enabled";
 	
 	public static final String GAME_MODE = "gameMode";
 	public static final String GAME_MODES = "gameModes";
@@ -59,6 +64,7 @@ public final class JSONField {
 	public static final String PLAYERS = "players";
 	public static final String PORT = "port";
 	public static final String POSITION = "pos";
+	public static final String PROCESS_ID = "pid";
 	public static final String PROFILE = "prof";
 	public static final String PROPERTIES = "props";
 	public static final String PROXIES = "proxies";
@@ -78,6 +84,7 @@ public final class JSONField {
 	public static final String TIMESTAMP = "ts";
 	public static final String TIMEZONE = "tz";
 	public static final String TRANSACTION_ID = "tid";
+	public static final String TRIGGER = "trigger";
 	public static final String TOTAL = "total";
 	public static final String TYPE = "type";
 	

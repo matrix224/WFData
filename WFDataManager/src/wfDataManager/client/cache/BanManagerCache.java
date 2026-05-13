@@ -3,6 +3,7 @@ package wfDataManager.client.cache;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -11,10 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 
 import jdtools.logging.Log;
 import jdtools.util.MiscUtil;
@@ -36,6 +39,7 @@ import wfDataModel.service.type.BanDirectionType;
 import wfDataModel.service.type.BanProtocolType;
 import wfDataModel.service.type.EloType;
 import wfDataModel.service.type.GameMode;
+import wfDataModel.service.type.PlatformType;
 
 /**
  * Cache to store and handle the management of user bans. <br>
@@ -70,6 +74,7 @@ public final class BanManagerCache {
 			try (BufferedReader br = new BufferedReader(new FileReader(bannedItemsCfg))) {
 				String cfgStr = "";
 				String line = null;
+				Gson gson = new GsonBuilder().create();
 				while ((line = br.readLine()) != null) {
 					cfgStr += line;
 				}
@@ -113,6 +118,10 @@ public final class BanManagerCache {
 							gameModes.forEach(gameMode -> {
 								loadoutData.addGameMode(GameMode.valueOf(gameMode.getAsString()));
 							});
+						}
+
+						if (loadoutObj.has(JSONField.BAN_REASONS)) {
+							loadoutData.setBanReasons(gson.fromJson(loadoutObj.getAsJsonArray(JSONField.BAN_REASONS), TypeToken.getParameterized(ArrayList.class, String.class).getType()));
 						}
 
 						loadouts.put(loadoutData.getLoadoutID(), loadoutData);
@@ -172,7 +181,7 @@ public final class BanManagerCache {
 		manageBan(data, BanActionType.ADD, BanData.KICK_BAN_IP, MiscUtil.isEmpty(reason) ? "Kicked" : reason);
 		return true;
 	}
-	
+
 	public boolean createPermaBan(String playerName, String uid, String reason) {
 		BanData data = getOrCreateBanData(playerName, uid);
 		if (data.isPermanent()) {
@@ -230,9 +239,11 @@ public final class BanManagerCache {
 			double loadoutAmt = 0;
 			String loadoutName = loadout.getLoadoutName();
 			int loadoutID = loadout.getLoadoutID();
+			String bannedItem = null;
 			for (LoadoutItemData item : loadout.getLoadoutItems()) {
 				if (itemNames.contains(item.getItemName()) && loadout.isForElo(player.getEloRating()) && loadout.isForGameMode(player.getGameMode()) && server.getPlayerItemKillCount(player.getUID(), item.getItemName()) > 0) {
 					loadoutAmt += Math.pow(item.getAmount(), -(server.getPlayerItemKillCount(player.getUID(), item.getItemName()) * player.getWeaponKills().get(item.getItemName()))); // c^(-tx), c = item amount, t = total kills with item in current session, x = kills with item during parsing period
+					bannedItem = item.getItemName(); // Note that we just assume there's only one item per loadout, even though it is a list
 				}
 			}
 			if (loadoutAmt >= offenseThreshold) {
@@ -260,7 +271,11 @@ public final class BanManagerCache {
 					BanSpec spec = banData.addOrGetBanSpec(player.getIPAndPort());
 					spec.setBanReason(loadoutName);
 					spec.setLoadoutID(loadoutID);
-
+					spec.setBannedItem(bannedItem);
+					spec.setGameMode(player.getGameMode());
+					spec.setEloRating(player.getEloRating());
+					spec.setPlatformType(PlatformType.codeToType(player.getPlatform()));
+					spec.setZoneId(server.getTimeStats().getZoneId());
 					manageBan(banData, BanActionType.ADD, player.getIPAndPort(), banData.getBanReason(player.getIPAndPort()));
 				}
 				break;
@@ -388,33 +403,46 @@ public final class BanManagerCache {
 		}
 	}
 
-	public synchronized void updateBanData(String oldUID, String newUID) {
+	public synchronized void updateBanData(Connection conn, String oldUID, String newUID) {
 		if (bannedTracker.containsKey(oldUID)) {
 			BanData data = bannedTracker.get(oldUID);
-			List<BanSpec> bannedSpecs = null;
-			if (isCurrentlyBanned(oldUID)) {
-				Log.warn(LOG_ID + ".updateBanData() : Old UID ", oldUID, " is currently banned, will remove and reinsert for new UID ", newUID);
-				for (BanSpec spec : data.getBanSpecs()) {
-					if (!spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary(), spec.isKick()))) {
-						if (bannedSpecs == null) {
-							bannedSpecs = new ArrayList<BanSpec>();
-							bannedSpecs.add(spec);
+			BanData curUIDData = bannedTracker.get(newUID);
+
+			// If the new UID has no ban data in the tracker, then update all old UID data to new UID
+			if (curUIDData == null) {
+				List<BanSpec> bannedSpecs = null;
+				if (isCurrentlyBanned(oldUID)) {
+					Log.warn(LOG_ID + ".updateBanData() : Old UID ", oldUID, " is currently banned, will remove and reinsert for new UID ", newUID);
+					for (BanSpec spec : data.getBanSpecs()) {
+						if (!spec.isExpired(ClientSettingsUtil.getBanTime(spec.isPrimary(), spec.isKick()))) {
+							if (bannedSpecs == null) {
+								bannedSpecs = new ArrayList<BanSpec>();
+								bannedSpecs.add(spec);
+							}
+							manageBan(data, BanActionType.REMOVE, spec.getIP());
 						}
-						manageBan(data, BanActionType.REMOVE, spec.getIP());
 					}
 				}
-			}
 
-			data.setUID(newUID);
-			bannedTracker.put(newUID, data);
-			bannedTracker.remove(oldUID);
+				data.setUID(newUID);
+				bannedTracker.put(newUID, data);
+				bannedTracker.remove(oldUID);
 
-			BanDao.updateBanDataReferences(oldUID, newUID);
+				BanDao.updateBanDataReferences(conn, oldUID, newUID);
 
-			if (!MiscUtil.isEmpty(bannedSpecs)) {
-				for (BanSpec spec : bannedSpecs) {
-					manageBan(data, BanActionType.ADD, spec.getIP());
+				if (!MiscUtil.isEmpty(bannedSpecs)) {
+					for (BanSpec spec : bannedSpecs) {
+						manageBan(data, BanActionType.ADD, spec.getIP());
+					}
 				}
+			} else {
+				// If the new UID already has a ban present in here, then we will remove the old UID from the tracker
+				// and merge their DB entries
+				for (Integer loadoutId : data.getOffensiveLoadouts()) {
+					curUIDData.addOffensiveLoadout(loadoutId);
+				}
+				bannedTracker.remove(oldUID);
+				BanDao.mergeMarkedPlayers(conn, oldUID, newUID);
 			}
 		}
 	}

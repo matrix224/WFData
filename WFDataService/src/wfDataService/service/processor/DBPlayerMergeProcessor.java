@@ -396,4 +396,89 @@ public class DBPlayerMergeProcessor {
 		}
 	}
 	
+	public void mergeBanLogs(Connection conn,  String oldUID, String uid) throws SQLException, ProcessingException {
+		PreparedStatement ps = null;
+		PreparedStatement psUpdate = null;
+		ResultSet rs = null;
+		ResultSet rsUpdate = null;
+
+		
+		try {
+			ps = conn.prepareStatement("SELECT * FROM BAN_LOG WHERE UID=?");
+			ps.setString(1, oldUID);
+			rs = ps.executeQuery();
+			while (rs.next()) {
+				LocalDate banDate = rs.getObject("BAN_DATE", LocalDate.class);
+				int banCount = rs.getInt("BAN_COUNT");
+				int gameMode = rs.getInt("GAME_MODE");
+				int elo = rs.getInt("ELO");
+				String weapon = rs.getString("WEAPON");
+				int platform = rs.getInt("PLATFORM");
+				int sid = rs.getInt("SID");
+				
+				psUpdate = conn.prepareStatement("SELECT BAN_COUNT FROM BAN_LOG WHERE UID=? AND BAN_DATE=? AND GAME_MODE=? AND ELO=? AND WEAPON=? AND PLATFORM=? AND SID=?");
+				psUpdate.setString(1, uid);
+				psUpdate.setObject(2, banDate);
+				psUpdate.setInt(3, gameMode);
+				psUpdate.setInt(4, elo);
+				psUpdate.setString(5, weapon);
+				psUpdate.setInt(6,  platform);
+				psUpdate.setInt(7, sid);
+				rsUpdate = psUpdate.executeQuery();
+				if (rsUpdate.next()) {
+					ResourceManager.releaseResources(psUpdate);
+					psUpdate = conn.prepareStatement("UPDATE BAN_LOG SET BAN_COUNT=BAN_COUNT + ? WHERE UID=? AND BAN_DATE=? AND GAME_MODE=? AND ELO=? AND WEAPON=? AND PLATFORM=? AND SID=?");
+					psUpdate.setInt(1, banCount);
+					psUpdate.setString(2, uid);
+					psUpdate.setObject(3, banDate);
+					psUpdate.setInt(4, gameMode);
+					psUpdate.setInt(5, elo);
+					psUpdate.setString(6, weapon);
+					psUpdate.setInt(7,  platform);
+					psUpdate.setInt(8, sid);
+					if (psUpdate.executeUpdate() == 0) {
+						throw new ProcessingException("Did not merge ban log row for " + oldUID + " to " + uid + " for sid=" + sid + ", date=" + banDate + ", game=" + gameMode + ", elo=" + elo + ", platform=" + platform);
+					}
+					
+					ResourceManager.releaseResources(psUpdate);
+					psUpdate = conn.prepareStatement("DELETE FROM BAN_LOG WHERE UID=? AND BAN_DATE=? AND GAME_MODE=? AND ELO=? AND WEAPON=? AND PLATFORM=? AND SID=?");
+					psUpdate.setString(1, oldUID);
+					psUpdate.setObject(2, banDate);
+					psUpdate.setInt(3, gameMode);
+					psUpdate.setInt(4, elo);
+					psUpdate.setString(5, weapon);
+					psUpdate.setInt(6,  platform);
+					psUpdate.setInt(7, sid);
+					if (psUpdate.executeUpdate() == 0) {
+						throw new ProcessingException("Did not delete old ban log row for " + oldUID + " for sid=" + sid + ", date=" + banDate + ", game=" + gameMode + ", elo=" + elo + ", platform=" + platform);
+					}
+					
+				} else {
+					// If new UID is not present for this same sid,ban date,game,elo,platform combo then we can just update the old UID entry to new one for it
+					ResourceManager.releaseResources(psUpdate);
+					psUpdate = conn.prepareStatement("UPDATE BAN_LOG SET UID=? WHERE UID=? AND BAN_DATE=? AND GAME_MODE=? AND ELO=? AND WEAPON=? AND PLATFORM=? AND SID=?");
+					psUpdate.setString(1, uid);
+					psUpdate.setString(2, oldUID);
+					psUpdate.setObject(3, banDate);
+					psUpdate.setInt(4, gameMode);
+					psUpdate.setInt(5, elo);
+					psUpdate.setString(6, weapon);
+					psUpdate.setInt(7,  platform);
+					psUpdate.setInt(8, sid);
+					if (psUpdate.executeUpdate() == 0) {
+						throw new ProcessingException("Did not update ban log row for " + oldUID + " to " + uid + " for sid=" + sid + ", date=" + banDate + ", game=" + gameMode + ", elo=" + elo + ", platform=" + platform);
+					}
+				}
+			
+				ResourceManager.releaseResources(psUpdate, rsUpdate);
+				
+			}
+			
+		} finally {
+			ResourceManager.releaseResources(rs, rsUpdate);
+			ResourceManager.releaseResources(ps, psUpdate);
+		}
+		
+	}
+	
 }

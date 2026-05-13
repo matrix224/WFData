@@ -9,26 +9,23 @@ import jdtools.logging.Log;
  */
 public enum GameMode {
 
-	CTF(406000, 3),
-	TA(406009, 2),
-	FFA(406010, 1),
-	LUNARO(406011, 4),
-	CTF_VAR(406012, 8),
-	TA_VAR(406013, 5),
-	FFA_VAR(406014, 6),
-	VT(406015, 7),
-	TOTAL(999999); // Made up value for data aggregated across all game modes
+	CTF(406000, 3, "CTF"),
+	TA(406009, 2, "TDM"),
+	FFA(406010, 1, "DM"),
+	LUNARO(406011, 4, "Lunaro"),
+	CTF_VAR(406012, 8, "CTFAlt"),
+	TA_VAR(406013, 5, "TDMAlt"),
+	FFA_VAR(406014, 6, "DMAlt"),
+	VT(406015, 7, "VT");
 	
-	private int gameId;
-	private int displayOrder;
+	private final int gameId;
+	private final int displayOrder;
+	private final String allocatorName;
 	
-	private GameMode(int gameId) {
-		this(gameId, Integer.MAX_VALUE);
-	}
-	
-	private GameMode(int gameId, int displayOrder) {
+	private GameMode(int gameId, int displayOrder, String allocatorName) {
 		this.gameId = gameId;
 		this.displayOrder = displayOrder;
+		this.allocatorName = allocatorName;
 	}
 	
 	public static GameMode idToType(int id) {
@@ -46,6 +43,10 @@ public enum GameMode {
 		}
 		
 		return type;
+	}
+	
+	public String getAllocatorName(EloType elo) {
+		return "Sp" + allocatorName + (EloType.NON_RC.equals(elo) ? "" : elo.name());
 	}
 	
 	public int getId() {

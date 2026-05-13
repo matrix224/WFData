@@ -10,10 +10,9 @@ import jdtools.logging.Log;
 public enum EloType {
 
 	RC(0),
-	NON_RC(2),
-	TOTAL(999999); // Made up value for data aggregated across all game modes
+	NON_RC(2);
 	
-	private int code;
+	private final int code;
 	
 	private EloType(int code) {
 		this.code = code;

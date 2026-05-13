@@ -44,11 +44,7 @@ public class ServiceSettingsUtil {
 	}
 	
 	public static boolean trackServerStatus() {
-		return singleton().printServerData();
-	}
-	
-	public static String getServerStatusFile() {
-		return singleton().getServerDataFile();
+		return singleton().trackServerStatus();
 	}
 	
 	public static int getServerStatusUpdateInterval() {
@@ -61,6 +57,10 @@ public class ServiceSettingsUtil {
 	
 	public static int getServerOutdatedTime() {
 		return singleton().getServerOutdatedTime();
+	}
+	
+	public static int getActivityProcessInterval() {
+		return singleton().getActivityProcessInterval();
 	}
 	
 	public static String getUserDir() {

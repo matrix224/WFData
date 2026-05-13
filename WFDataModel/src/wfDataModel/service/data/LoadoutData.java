@@ -20,6 +20,7 @@ public class LoadoutData {
 	private String loadoutName;
 	private EloType elo;
 	private Set<GameMode> gameModes = new HashSet<GameMode>();
+	private List<String> banReasons = new ArrayList<String>();
 	private Integer loadoutID = null;
 
 	public LoadoutData(String loadoutName) {
@@ -48,6 +49,14 @@ public class LoadoutData {
 	
 	public Set<GameMode> getGameModes() {
 		return gameModes;
+	}
+	
+	public void setBanReasons(List<String> banReasons) {
+		this.banReasons = banReasons;
+	}
+	
+	public List<String> getBanReasons() {
+		return banReasons;
 	}
 	
 	public void setElo(EloType elo) {

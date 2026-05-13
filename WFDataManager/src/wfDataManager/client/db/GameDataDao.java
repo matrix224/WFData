@@ -95,9 +95,11 @@ public final class GameDataDao {
 						DBPlayerMergeProcessor merger = new DBPlayerMergeProcessor();
 						for (DBPlayerData dbPlayer : dbData) {
 							if (!dbPlayer.getCurDBUID().equals(data.getUID())) {
-								// If their platforms are different or they're PSN with the same name, will consider okay to merge
+								// If their platforms are different or they're PSN/IOS/Android with the same name, will consider okay to merge
+								// For IOS, this was added 10/31/25 because UID format changed for them at some point
+								// Android added 3/1/2026 because UID may change depending on device
 								// Otherwise will consider an issue for manual review
-								if (dbPlayer.getCurPlatform() != data.getPlatform() ||  (PlatformType.PSN.getCode() == dbPlayer.getCurPlatform() && (dbPlayer.getCurDBAID().equals(data.getAccountID()) || dbPlayer.getCurDBName().equals(data.getPlayerName())))) {
+								if (dbPlayer.getCurPlatform() != data.getPlatform() ||  ((PlatformType.PSN.getCode() == dbPlayer.getCurPlatform() || PlatformType.IOS.getCode() == dbPlayer.getCurPlatform() || PlatformType.ANDROID.getCode() == dbPlayer.getCurPlatform()) && (dbPlayer.getCurDBAID().equals(data.getAccountID()) || dbPlayer.getCurDBName().equals(data.getPlayerName())))) {
 									merger.mergePlayerData(conn, dbPlayer.getCurDBUID(), data.getUID());
 									merger.mergeWeeklyData(conn, dbPlayer.getCurDBUID(), data.getUID());
 									merger.mergePlayerProfile(conn, data.getAccountID(), dbPlayer.getCurDBUID(), data.getUID());
@@ -168,10 +170,10 @@ public final class GameDataDao {
 								// Otherwise for game data, then update other tables to reflect new UID
 
 								// STEP 2: Update ban data
-								BanManagerCache.singleton().updateBanData(curDBUID, data.getUID());
+								BanManagerCache.singleton().updateBanData(conn, curDBUID, data.getUID());
 
 								// STEP 3: Update tracker data
-								PlayerTrackerCache.singleton().updatePlayerTracker(curDBUID, data.getUID());
+								PlayerTrackerCache.singleton().updatePlayerTracker(conn, curDBUID, data.getUID());
 
 								// STEP 4: Update player data
 								psUpdateData = conn.prepareStatement("UPDATE PLAYER_DATA SET UID=? WHERE UID=?");

@@ -8,6 +8,8 @@ import java.util.Base64;
 
 import javax.crypto.KeyAgreement;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -43,6 +45,7 @@ public final class RequestUtil {
 	public static void sendRegisterRequest() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException {
 		JsonObject data = new JsonObject();
 		JsonObject clientProps = new JsonObject();
+		Gson gson = new GsonBuilder().create();
 		data.addProperty(JSONField.SERVER_NAME, ClientSettingsUtil.getDisplayName());
 		data.add(JSONField.PROPERTIES, clientProps);
 		if (!MiscUtil.isEmpty(ClientSettingsUtil.getRegion())) {
@@ -57,6 +60,7 @@ public final class RequestUtil {
 				JsonObject banObj = new JsonObject();
 				JsonArray gamesArr = new JsonArray();
 				JsonArray itemsArr = new JsonArray();
+				
 				for (GameMode gm : loadout.getGameModes()) {
 					gamesArr.add(gm.getId());
 				}
@@ -66,6 +70,13 @@ public final class RequestUtil {
 				banObj.addProperty(JSONField.ELO, loadout.getElo() != null ? loadout.getElo().getCode() : -1);
 				banObj.add(JSONField.GAME_MODES, gamesArr);
 				banObj.add(JSONField.ITEMS, itemsArr);
+				if (!MiscUtil.isEmpty(loadout.getBanReasons())) {
+					JsonArray banReasonsArr = new JsonArray();
+					for (String reason : loadout.getBanReasons()) {
+						banReasonsArr.add(reason);
+					}
+					banObj.add(JSONField.BAN_REASONS, banReasonsArr);
+				}
 				bansArr.add(banObj);
 			}
 			clientProps.add(JSONField.BANS, bansArr);

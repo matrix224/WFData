@@ -10,7 +10,8 @@ import wfDataService.service.util.data.ServiceTaskManager;
  */
 public final class ServiceTaskUtil {
 	public static final String TASK_SERVER_STATUS = "Server Status";
-	
+	public static final String TASK_ACTIVITY = "Activity";
+
 	private static ServiceTaskManager singleton;
 	
 	private static synchronized ServiceTaskManager singleton() {
